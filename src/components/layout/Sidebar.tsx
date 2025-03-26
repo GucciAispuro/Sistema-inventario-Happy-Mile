@@ -20,9 +20,11 @@ import {
   SidebarHeader,
 } from '@/components/ui/sidebar';
 import MotionContainer from '../ui/MotionContainer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function AppSidebar() {
   const location = useLocation();
+  const isMobile = useIsMobile();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -43,7 +45,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar>
+    <Sidebar className={isMobile ? "z-50" : ""}>
       <SidebarHeader className="p-4">
         <MotionContainer className="flex items-center gap-2">
           <div className="h-10 w-auto">
@@ -63,7 +65,7 @@ export function AppSidebar() {
               MENÚ PRINCIPAL
             </p>
             
-            {mainItems.map((item, index) => (
+            {mainItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -82,7 +84,7 @@ export function AppSidebar() {
               ADMINISTRACIÓN
             </p>
             
-            {adminItems.map((item, index) => (
+            {adminItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}

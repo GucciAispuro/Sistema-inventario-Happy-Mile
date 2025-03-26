@@ -127,6 +127,15 @@
   .subtle-input {
     @apply bg-muted/50 border-0 focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/70;
   }
+
+  /* Make all dropdown menus have proper background and z-index */
+  [data-radix-popper-content-wrapper] {
+    @apply z-50 !important;
+  }
+
+  .radix-side-bottom\:animate-in {
+    @apply bg-white;
+  }
 }
 
 @layer utilities {

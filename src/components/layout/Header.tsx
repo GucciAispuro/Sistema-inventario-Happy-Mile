@@ -5,6 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useLocation } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface HeaderProps {
   title?: string;
@@ -13,6 +19,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ title }) => {
   const location = useLocation();
   const [pageTitle, setPageTitle] = useState(title);
+  const isMobile = useIsMobile();
   
   // Update title based on current route if not provided
   useEffect(() => {
@@ -32,7 +39,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
   }, [location, title]);
 
   return (
-    <header className="bg-white border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-white/90">
+    <header className="bg-white border-b border-border sticky top-0 z-20 backdrop-blur-sm bg-white/90">
       <div className="flex h-16 items-center px-6 gap-4">
         <div className="md:hidden">
           <SidebarTrigger>
@@ -55,11 +62,25 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
           />
         </div>
         
-        <Button variant="ghost" size="icon" className="rounded-full relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive"></span>
-          <span className="sr-only">Notificaciones</span>
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full relative">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive"></span>
+              <span className="sr-only">Notificaciones</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 bg-white">
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <h4 className="font-medium leading-none">Notificaciones</h4>
+                <p className="text-sm text-muted-foreground">
+                  No hay notificaciones nuevas.
+                </p>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
         
         <Button variant="ghost" className="rounded-full p-0 overflow-hidden h-9 w-9">
           <img 
