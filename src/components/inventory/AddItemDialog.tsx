@@ -34,8 +34,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     location: '',
     quantity: 0,
     min_stock: 0,
-    cost: 0,
-    delivery_time: 0 // Nuevo campo para tiempo de entrega (en días)
+    cost: 0
   });
   
   // Lista predefinida de categorías
@@ -58,7 +57,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     const { name, value } = e.target;
     setNewItem({
       ...newItem,
-      [name]: name === 'quantity' || name === 'min_stock' || name === 'cost' || name === 'delivery_time'
+      [name]: name === 'quantity' || name === 'min_stock' || name === 'cost'
         ? parseFloat(value) || 0 
         : value
     });
@@ -153,15 +152,6 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       return;
     }
 
-    if (newItem.delivery_time < 0) {
-      toast({
-        title: "Error",
-        description: "El tiempo de entrega no puede ser negativo",
-        variant: "destructive"
-      });
-      return;
-    }
-
     // Crear el nuevo artículo con valores calculados
     const newItemWithDetails = {
       ...newItem,
@@ -180,8 +170,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       location: '',
       quantity: 0,
       min_stock: 0,
-      cost: 0,
-      delivery_time: 0
+      cost: 0
     });
     
     // Cerrar el diálogo
@@ -322,18 +311,6 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
                   step="0.01"
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="delivery_time">Tiempo de Entrega (días) *</Label>
-                <Input
-                  id="delivery_time"
-                  name="delivery_time"
-                  type="number"
-                  value={newItem.delivery_time}
-                  onChange={handleInputChange}
-                  min="0"
-                />
-              </div>
             </div>
           </div>
           
@@ -350,3 +327,4 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
 };
 
 export default AddItemDialog;
+

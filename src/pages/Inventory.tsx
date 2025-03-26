@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { DataTable } from '@/components/ui/DataTable';
@@ -15,8 +15,7 @@ import {
   ArrowUpDown,
   Download,
   DollarSign,
-  MapPin,
-  Clock
+  MapPin
 } from 'lucide-react';
 import {
   Select,
@@ -27,16 +26,16 @@ import {
 } from "@/components/ui/select";
 
 const initialInventoryItems = [
-  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000, delivery_time: 7 },
-  { id: 2, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Bajo', cost: 120, total_value: 960, delivery_time: 2 },
-  { id: 3, name: 'Laptop', category: 'Electrónicos', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal', cost: 15000, total_value: 180000, delivery_time: 14 },
-  { id: 4, name: 'Silla de Oficina', category: 'Mobiliario', location: 'Monterrey', quantity: 7, min_stock: 5, status: 'Normal', cost: 1200, total_value: 8400, delivery_time: 7 },
-  { id: 5, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'Monterrey', quantity: 3, min_stock: 10, status: 'Crítico', cost: 120, total_value: 360, delivery_time: 2 },
-  { id: 6, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', location: 'Guadalajara', quantity: 5, min_stock: 8, status: 'Bajo', cost: 2500, total_value: 12500, delivery_time: 5 },
-  { id: 7, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', location: 'Culiacán', quantity: 4, min_stock: 5, status: 'Bajo', cost: 350, total_value: 1400, delivery_time: 3 },
-  { id: 8, name: 'Tóner para Impresora', category: 'Material de Oficina', location: 'Guadalajara', quantity: 9, min_stock: 2, status: 'Normal', cost: 800, total_value: 7200, delivery_time: 4 },
-  { id: 9, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', location: 'CDMX', quantity: 12, min_stock: 5, status: 'Normal', cost: 650, total_value: 7800, delivery_time: 3 },
-  { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700, delivery_time: 6 },
+  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000 },
+  { id: 2, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Bajo', cost: 120, total_value: 960 },
+  { id: 3, name: 'Laptop', category: 'Electrónicos', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal', cost: 15000, total_value: 180000 },
+  { id: 4, name: 'Silla de Oficina', category: 'Mobiliario', location: 'Monterrey', quantity: 7, min_stock: 5, status: 'Normal', cost: 1200, total_value: 8400 },
+  { id: 5, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'Monterrey', quantity: 3, min_stock: 10, status: 'Crítico', cost: 120, total_value: 360 },
+  { id: 6, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', location: 'Guadalajara', quantity: 5, min_stock: 8, status: 'Bajo', cost: 2500, total_value: 12500 },
+  { id: 7, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', location: 'Culiacán', quantity: 4, min_stock: 5, status: 'Bajo', cost: 350, total_value: 1400 },
+  { id: 8, name: 'Tóner para Impresora', category: 'Material de Oficina', location: 'Guadalajara', quantity: 9, min_stock: 2, status: 'Normal', cost: 800, total_value: 7200 },
+  { id: 9, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', location: 'CDMX', quantity: 12, min_stock: 5, status: 'Normal', cost: 650, total_value: 7800 },
+  { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700 },
 ];
 
 const Inventory = () => {
@@ -86,7 +85,9 @@ const Inventory = () => {
   }, [searchQuery, selectedLocation, inventoryItems]);
 
   const handleAddItem = (newItem) => {
-    setInventoryItems([...inventoryItems, newItem]);
+    const { delivery_time, ...itemWithoutDeliveryTime } = newItem;
+    
+    setInventoryItems([...inventoryItems, itemWithoutDeliveryTime]);
     
     toast({
       title: "Artículo añadido",
@@ -202,16 +203,6 @@ const Inventory = () => {
                 header: 'Valor Total',
                 cell: (item) => (
                   <div className="font-medium text-green-700">{formatCurrency(item.total_value)}</div>
-                )
-              },
-              { 
-                key: 'delivery_time', 
-                header: 'Tiempo de Entrega',
-                cell: (item) => (
-                  <div className="flex items-center text-amber-600">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {item.delivery_time} día{item.delivery_time !== 1 ? 's' : ''}
-                  </div>
                 )
               },
               { 
