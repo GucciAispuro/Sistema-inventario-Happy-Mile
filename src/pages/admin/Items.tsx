@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  Plus, 
   Search,
   Filter,
   Edit,
@@ -74,14 +73,6 @@ const AdminItems = () => {
     }
   }, [searchQuery, categoryFilter]);
 
-  const handleAddItem = () => {
-    // En una implementación real, esto abriría un modal o navegaría a un formulario
-    toast({
-      title: "Añadir Artículo",
-      description: "Esta funcionalidad estará disponible próximamente.",
-    });
-  };
-
   const handleEdit = (item) => {
     toast({
       title: "Editar Artículo",
@@ -122,11 +113,6 @@ const AdminItems = () => {
               <Button variant="outline" size="sm" onClick={toggleFilters}>
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrar
-              </Button>
-              
-              <Button size="sm" onClick={handleAddItem}>
-                <Plus className="h-4 w-4 mr-2" />
-                Añadir Artículo
               </Button>
             </div>
           </div>

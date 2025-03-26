@@ -10,6 +10,7 @@ import {
   Users,
   LogOut,
   ClipboardCheck,
+  FileCheck2
 } from 'lucide-react';
 import {
   Sidebar,
@@ -37,6 +38,7 @@ export function AppSidebar() {
     { icon: BoxesIcon, label: 'Inventario', path: '/inventory' },
     { icon: ArrowLeftRight, label: 'Transacciones', path: '/transactions' },
     { icon: ClipboardCheck, label: 'Entrada y Salida', path: '/colaborador' },
+    { icon: FileCheck2, label: 'Auditar', path: '/audit' },
   ];
 
   return (

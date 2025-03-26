@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -5,14 +6,25 @@ import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
   Search,
   Edit,
   Trash2,
   MapPin,
-  DollarSign
+  DollarSign,
+  X
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Mock data for locations
 const locations = [
@@ -52,10 +64,17 @@ const locations = [
 
 const AdminLocations = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredLocations, setFilteredLocations] = useState(locations);
   const [totalOverallValue, setTotalOverallValue] = useState(0);
+  const [showAddLocationDialog, setShowAddLocationDialog] = useState(false);
+  const [newLocation, setNewLocation] = useState({
+    name: '',
+    address: '',
+    manager: ''
+  });
   
   useEffect(() => {
     // Check authentication
@@ -93,6 +112,36 @@ const AdminLocations = () => {
     setTotalOverallValue(total);
   }, [searchQuery]);
 
+  const handleAddLocation = () => {
+    setShowAddLocationDialog(true);
+  };
+
+  const handleSaveLocation = () => {
+    // Validación básica
+    if (!newLocation.name || !newLocation.address || !newLocation.manager) {
+      toast({
+        title: "Error",
+        description: "Todos los campos son obligatorios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Simular añadir la ubicación (en una app real, esto enviaría datos al backend)
+    toast({
+      title: "Ubicación añadida",
+      description: `Se ha añadido ${newLocation.name} correctamente`,
+    });
+
+    // Cerrar diálogo y resetear formulario
+    setShowAddLocationDialog(false);
+    setNewLocation({
+      name: '',
+      address: '',
+      manager: ''
+    });
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -122,7 +171,7 @@ const AdminLocations = () => {
                   Valor Total: {formatCurrency(totalOverallValue)}
                 </span>
               </div>
-              <Button size="sm">
+              <Button size="sm" onClick={handleAddLocation}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Location
               </Button>
@@ -188,6 +237,54 @@ const AdminLocations = () => {
           />
         </MotionContainer>
       </div>
+
+      {/* Dialog para añadir ubicación */}
+      <Dialog open={showAddLocationDialog} onOpenChange={setShowAddLocationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Añadir Nueva Ubicación</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="location-name">Nombre de la ubicación</Label>
+              <Input 
+                id="location-name" 
+                value={newLocation.name}
+                onChange={(e) => setNewLocation({...newLocation, name: e.target.value})}
+                placeholder="Ej. Sucursal Norte"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="location-address">Dirección</Label>
+              <Input 
+                id="location-address" 
+                value={newLocation.address}
+                onChange={(e) => setNewLocation({...newLocation, address: e.target.value})}
+                placeholder="Dirección completa"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="location-manager">Administrador</Label>
+              <Input 
+                id="location-manager" 
+                value={newLocation.manager}
+                onChange={(e) => setNewLocation({...newLocation, manager: e.target.value})}
+                placeholder="Nombre del administrador"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleSaveLocation}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
