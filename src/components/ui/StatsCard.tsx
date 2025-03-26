@@ -66,7 +66,8 @@ const StatsCard: React.FC<StatsCardProps> = ({
   const [showChart, setShowChart] = useState(false);
   const historicalData = generateHistoricalData(title);
   
-  const formatYAxisTick = (value: number) => {
+  // Fix: Ensure formatYAxisTick always returns a string
+  const formatYAxisTick = (value: number): string => {
     if (title.includes('Valor')) {
       return new Intl.NumberFormat('es-MX', {
         style: 'currency',
@@ -75,7 +76,8 @@ const StatsCard: React.FC<StatsCardProps> = ({
         maximumFractionDigits: 1
       }).format(value);
     }
-    return value;
+    // Make sure to return a string
+    return value.toString();
   };
 
   return (
