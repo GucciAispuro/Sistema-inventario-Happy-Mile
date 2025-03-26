@@ -5,7 +5,7 @@ import Layout from '@/components/layout/Layout';
 import StatsCard from '@/components/ui/StatsCard';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
-import Badge from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   BoxIcon, 

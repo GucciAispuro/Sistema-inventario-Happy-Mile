@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
-import Badge from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -64,9 +63,9 @@ const Inventory = () => {
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'Low': return 'warning';
-      case 'Critical': return 'danger';
-      default: return 'success';
+      case 'Low': return 'destructive';
+      case 'Critical': return 'destructive';
+      default: return 'secondary';
     }
   };
 

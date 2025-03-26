@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
-import Badge from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -110,9 +110,9 @@ const AdminUsers = () => {
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
-      case 'admin': return 'primary';
-      case 'ops': return 'success';
-      default: return 'secondary';
+      case 'admin': return 'default';
+      case 'ops': return 'secondary';
+      default: return 'outline';
     }
   };
 
