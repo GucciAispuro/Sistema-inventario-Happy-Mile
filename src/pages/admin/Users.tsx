@@ -7,6 +7,7 @@ import MotionContainer from '@/components/ui/MotionContainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { 
   Plus, 
   Search,
@@ -14,8 +15,10 @@ import {
   Trash2,
   User,
   Shield,
-  MapPin
+  MapPin,
+  Bell
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 // Mock data for users
 const users = [
@@ -25,7 +28,7 @@ const users = [
     email: 'maria@example.com',
     role: 'admin',
     location: 'CDMX',
-    last_active: '2023-06-01 09:45'
+    receiveAlerts: true
   },
   { 
     id: 2, 
@@ -33,7 +36,7 @@ const users = [
     email: 'carlos@example.com',
     role: 'ops',
     location: 'Monterrey',
-    last_active: '2023-06-01 10:30'
+    receiveAlerts: true
   },
   { 
     id: 3, 
@@ -41,7 +44,7 @@ const users = [
     email: 'juan@example.com',
     role: 'ops',
     location: 'Guadalajara',
-    last_active: '2023-05-31 14:15'
+    receiveAlerts: false
   },
   { 
     id: 4, 
@@ -49,7 +52,7 @@ const users = [
     email: 'ana@example.com',
     role: 'ops',
     location: 'Culiacán',
-    last_active: '2023-05-31 16:45'
+    receiveAlerts: true
   },
   { 
     id: 5, 
@@ -57,7 +60,7 @@ const users = [
     email: 'diego@example.com',
     role: 'viewer',
     location: 'CDMX',
-    last_active: '2023-05-30 11:20'
+    receiveAlerts: false
   },
   { 
     id: 6, 
@@ -65,7 +68,7 @@ const users = [
     email: 'laura@example.com',
     role: 'viewer',
     location: 'Monterrey',
-    last_active: '2023-05-29 09:10'
+    receiveAlerts: false
   },
 ];
 
@@ -108,6 +111,26 @@ const AdminUsers = () => {
     }
   }, [searchQuery]);
 
+  const handleToggleAlerts = (userId: number) => {
+    setFilteredUsers(prevUsers => 
+      prevUsers.map(user => 
+        user.id === userId 
+          ? { ...user, receiveAlerts: !user.receiveAlerts } 
+          : user
+      )
+    );
+    
+    // Show toast notification
+    const user = users.find(user => user.id === userId);
+    if (user) {
+      const newState = !user.receiveAlerts;
+      toast({
+        title: "Preferencia actualizada",
+        description: `${user.name} ${newState ? 'recibirá' : 'no recibirá'} alertas de stock bajo`,
+      });
+    }
+  };
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'admin': return 'default';
@@ -124,7 +147,7 @@ const AdminUsers = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search users..." 
+                placeholder="Buscar usuarios..." 
                 className="pl-9 subtle-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -134,7 +157,7 @@ const AdminUsers = () => {
             <div className="flex items-center gap-2">
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Add User
+                Añadir Usuario
               </Button>
             </div>
           </div>
@@ -146,7 +169,7 @@ const AdminUsers = () => {
             columns={[
               { 
                 key: 'name', 
-                header: 'Name',
+                header: 'Nombre',
                 cell: (user) => (
                   <div className="font-medium flex items-center">
                     <User className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -157,19 +180,21 @@ const AdminUsers = () => {
               { key: 'email', header: 'Email' },
               { 
                 key: 'role', 
-                header: 'Role',
+                header: 'Rol',
                 cell: (user) => (
                   <div className="flex items-center">
                     <Shield className="h-3 w-3 mr-1 text-muted-foreground" />
                     <Badge variant={getRoleBadgeVariant(user.role)}>
-                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      {user.role === 'admin' ? 'Admin' : 
+                       user.role === 'ops' ? 'Operador' : 
+                       'Visualizador'}
                     </Badge>
                   </div>
                 )
               },
               { 
                 key: 'location', 
-                header: 'Location',
+                header: 'Ubicación',
                 cell: (user) => (
                   <div className="flex items-center">
                     <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
@@ -178,11 +203,18 @@ const AdminUsers = () => {
                 )
               },
               { 
-                key: 'last_active', 
-                header: 'Last Active',
+                key: 'receiveAlerts', 
+                header: 'Recibir Alertas',
                 cell: (user) => (
-                  <div className="text-muted-foreground text-sm">
-                    {user.last_active}
+                  <div className="flex items-center gap-2">
+                    <Switch 
+                      checked={user.receiveAlerts} 
+                      onCheckedChange={() => handleToggleAlerts(user.id)}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {user.receiveAlerts ? 'Activado' : 'Desactivado'}
+                    </span>
+                    <Bell className="h-3 w-3 text-muted-foreground" />
                   </div>
                 )
               },
@@ -193,11 +225,11 @@ const AdminUsers = () => {
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm">
                       <Edit className="h-4 w-4 mr-1" />
-                      Edit
+                      Editar
                     </Button>
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
+                      Eliminar
                     </Button>
                   </div>
                 )
@@ -211,3 +243,4 @@ const AdminUsers = () => {
 };
 
 export default AdminUsers;
+

@@ -10,7 +10,8 @@ import {
   Users,
   LogOut,
   ClipboardCheck,
-  FileCheck2
+  FileCheck2,
+  Bell
 } from 'lucide-react';
 import {
   Sidebar,
