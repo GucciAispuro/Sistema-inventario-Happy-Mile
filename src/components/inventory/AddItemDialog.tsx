@@ -9,10 +9,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle } from 'lucide-react';
+import ItemForm, { ItemFormData } from './ItemForm';
+import { validateItemForm, calculateItemStatus } from '@/utils/inventory/validation';
 
 interface AddItemDialogProps {
   open: boolean;
@@ -28,7 +26,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
   onAddItem
 }) => {
   const { toast } = useToast();
-  const [newItem, setNewItem] = useState({
+  const [newItem, setNewItem] = useState<ItemFormData>({
     name: '',
     category: '',
     location: '',
@@ -48,105 +46,29 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
   
   // Estado para categorías personalizadas
   const [categories, setCategories] = useState(defaultCategories);
-  
-  // Estado para mostrar/ocultar la entrada de nueva categoría
-  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleFieldChange = (field: string, value: string | number) => {
     setNewItem({
       ...newItem,
-      [name]: name === 'quantity' || name === 'min_stock' || name === 'cost'
-        ? parseFloat(value) || 0 
-        : value
+      [field]: value
     });
   };
 
-  // Función para añadir una nueva categoría
-  const handleAddCategory = () => {
-    if (newCategory.trim() === '') {
-      toast({
-        title: "Error",
-        description: "El nombre de la categoría no puede estar vacío",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (categories.includes(newCategory.trim())) {
-      toast({
-        title: "Error",
-        description: "Esta categoría ya existe",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setCategories([...categories, newCategory.trim()]);
-    setNewItem({...newItem, category: newCategory.trim()});
-    setNewCategory('');
-    setShowNewCategoryInput(false);
-    
-    toast({
-      title: "Categoría añadida",
-      description: `La categoría "${newCategory.trim()}" ha sido añadida correctamente`
-    });
+  const handleAddCategory = (category: string) => {
+    setCategories([...categories, category]);
+    setNewItem({...newItem, category});
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validación básica
-    if (!newItem.name.trim()) {
+    // Validación
+    const validation = validateItemForm(newItem);
+    
+    if (!validation.isValid) {
       toast({
         title: "Error",
-        description: "El nombre del artículo es requerido",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!newItem.category) {
-      toast({
-        title: "Error",
-        description: "La categoría es requerida",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!newItem.location) {
-      toast({
-        title: "Error",
-        description: "La ubicación es requerida",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newItem.quantity < 0) {
-      toast({
-        title: "Error",
-        description: "La cantidad no puede ser negativa",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newItem.min_stock < 0) {
-      toast({
-        title: "Error",
-        description: "El stock mínimo no puede ser negativo",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newItem.cost <= 0) {
-      toast({
-        title: "Error",
-        description: "El costo debe ser mayor que cero",
+        description: validation.errors[0],
         variant: "destructive"
       });
       return;
@@ -156,7 +78,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     const newItemWithDetails = {
       ...newItem,
       id: Date.now(), // ID temporal
-      status: newItem.quantity < newItem.min_stock ? (newItem.quantity === 0 ? 'Crítico' : 'Bajo') : 'Normal',
+      status: calculateItemStatus(newItem.quantity, newItem.min_stock),
       total_value: newItem.quantity * newItem.cost
     };
 
@@ -185,134 +107,13 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre del Artículo *</Label>
-              <Input
-                id="name"
-                name="name"
-                value={newItem.name}
-                onChange={handleInputChange}
-                placeholder="Ej: Laptop Dell XPS"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoría *</Label>
-              {!showNewCategoryInput ? (
-                <div className="flex items-center gap-2">
-                  <Select 
-                    value={newItem.category} 
-                    onValueChange={(value) => setNewItem({...newItem, category: value})}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Seleccionar categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => setShowNewCategoryInput(true)}
-                    title="Añadir nueva categoría"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder="Nueva categoría..."
-                    className="flex-1"
-                  />
-                  <Button 
-                    type="button" 
-                    size="sm"
-                    onClick={handleAddCategory}
-                  >
-                    Añadir
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowNewCategoryInput(false)}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="location">Ubicación *</Label>
-              <Select 
-                value={newItem.location} 
-                onValueChange={(value) => setNewItem({...newItem, location: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar ubicación" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location} value={location}>
-                      {location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Cantidad *</Label>
-                <Input
-                  id="quantity"
-                  name="quantity"
-                  type="number"
-                  value={newItem.quantity}
-                  onChange={handleInputChange}
-                  min="0"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="min_stock">Stock Mínimo *</Label>
-                <Input
-                  id="min_stock"
-                  name="min_stock"
-                  type="number"
-                  value={newItem.min_stock}
-                  onChange={handleInputChange}
-                  min="0"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cost">Costo Unitario (MXN) *</Label>
-                <Input
-                  id="cost"
-                  name="cost"
-                  type="number"
-                  value={newItem.cost}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-          </div>
+          <ItemForm 
+            item={newItem}
+            onChange={handleFieldChange}
+            locations={locations}
+            categories={categories}
+            onAddCategory={handleAddCategory}
+          />
           
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -327,4 +128,3 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
 };
 
 export default AddItemDialog;
-
