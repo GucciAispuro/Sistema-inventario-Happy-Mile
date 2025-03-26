@@ -26,26 +26,27 @@ export function AppSidebar() {
   };
 
   const adminItems = [
-    { icon: Package, label: 'Items', path: '/admin/items' },
-    { icon: Map, label: 'Locations', path: '/admin/locations' },
-    { icon: Users, label: 'Users', path: '/admin/users' },
+    { icon: Package, label: 'Artículos', path: '/admin/items' },
+    { icon: Map, label: 'Ubicaciones', path: '/admin/locations' },
+    { icon: Users, label: 'Usuarios', path: '/admin/users' },
   ];
 
   const mainItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: BoxesIcon, label: 'Inventory', path: '/inventory' },
-    { icon: ArrowLeftRight, label: 'Transactions', path: '/transactions' },
+    { icon: BoxesIcon, label: 'Inventario', path: '/inventory' },
+    { icon: ArrowLeftRight, label: 'Transacciones', path: '/transactions' },
   ];
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
         <MotionContainer className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center">
-            <BoxesIcon className="h-5 w-5 text-white" />
-          </div>
-          <div className="font-semibold text-lg text-sidebar-foreground">
-            RoadLogix
+          <div className="h-10 w-auto">
+            <img 
+              src="/lovable-uploads/5399f4ec-e1d9-4ad7-bd49-730fd7167990.png" 
+              alt="Happy Mile Logo" 
+              className="h-full w-auto object-contain"
+            />
           </div>
         </MotionContainer>
       </SidebarHeader>
@@ -54,7 +55,7 @@ export function AppSidebar() {
         <MotionContainer delay={100} className="px-3 py-2">
           <div className="space-y-1">
             <p className="text-sidebar-foreground/50 text-xs font-medium ml-3 mb-2">
-              MAIN MENU
+              MENÚ PRINCIPAL
             </p>
             
             {mainItems.map((item, index) => (
@@ -73,7 +74,7 @@ export function AppSidebar() {
         <MotionContainer delay={200} className="mt-6 px-3 py-2">
           <div className="space-y-1">
             <p className="text-sidebar-foreground/50 text-xs font-medium ml-3 mb-2">
-              ADMINISTRATION
+              ADMINISTRACIÓN
             </p>
             
             {adminItems.map((item, index) => (
@@ -94,7 +95,7 @@ export function AppSidebar() {
         <MotionContainer delay={300}>
           <Link to="/" className="nav-link text-sidebar-foreground/70">
             <LogOut className="h-4 w-4" />
-            <span>Log Out</span>
+            <span>Cerrar Sesión</span>
           </Link>
         </MotionContainer>
       </SidebarFooter>

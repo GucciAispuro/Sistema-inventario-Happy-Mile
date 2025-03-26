@@ -28,8 +28,8 @@ const LoginForm = () => {
       localStorage.setItem('isAuthenticated', 'true');
       
       toast({
-        title: "Success",
-        description: "You have successfully logged in",
+        title: "Éxito",
+        description: "Has iniciado sesión correctamente",
       });
       
       navigate('/dashboard');
@@ -39,23 +39,27 @@ const LoginForm = () => {
   return (
     <div className="w-full max-w-md">
       <MotionContainer className="mb-8 text-center">
-        <div className="mx-auto h-12 w-12 rounded-xl bg-primary flex items-center justify-center mb-4">
-          <BoxesIcon className="h-6 w-6 text-white" />
+        <div className="mx-auto h-16 w-auto mb-4">
+          <img 
+            src="/lovable-uploads/5399f4ec-e1d9-4ad7-bd49-730fd7167990.png" 
+            alt="Happy Mile Logo" 
+            className="h-full w-auto object-contain"
+          />
         </div>
-        <h1 className="text-2xl font-semibold">Road Logistics Inventory</h1>
+        <h1 className="text-2xl font-semibold">Sistema de Inventario</h1>
         <p className="text-muted-foreground mt-2">
-          Login disabled for testing - click Sign In to continue
+          Inicio de sesión desactivado para pruebas - haga clic en Iniciar Sesión para continuar
         </p>
       </MotionContainer>
       
       <MotionContainer delay={100}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Correo Electrónico</Label>
             <Input
               id="email"
               type="email"
-              placeholder="admin@example.com"
+              placeholder="admin@ejemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="subtle-input"
@@ -64,9 +68,9 @@ const LoginForm = () => {
           
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Button type="button" variant="link" className="p-0 h-auto text-xs">
-                Forgot password?
+                ¿Olvidó su contraseña?
               </Button>
             </div>
             <Input
@@ -80,11 +84,11 @@ const LoginForm = () => {
           </div>
           
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in (Auto Login Enabled)"}
+            {isLoading ? "Iniciando sesión..." : "Iniciar Sesión (Automático)"}
           </Button>
           
           <div className="text-center text-sm text-muted-foreground">
-            <p>Login is disabled for testing - you'll be signed in as Admin</p>
+            <p>El inicio de sesión está desactivado para pruebas - se iniciará como Administrador</p>
           </div>
         </form>
       </MotionContainer>

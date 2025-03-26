@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -14,28 +15,30 @@ import {
   ArrowDown, 
   ArrowUp,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  DollarSign
 } from 'lucide-react';
 
-// Mock data
+// Mock data with cost
 const lowStockItems = [
-  { id: 1, name: 'Office Chair', location: 'CDMX', stock: 2, min: 5, status: 'Low' },
-  { id: 2, name: 'Printer Paper', location: 'Monterrey', stock: 3, min: 10, status: 'Critical' },
-  { id: 3, name: 'Spare Tire', location: 'Guadalajara', stock: 1, min: 3, status: 'Low' },
-  { id: 4, name: 'Safety Vest', location: 'Culiacán', stock: 4, min: 5, status: 'Low' },
+  { id: 1, name: 'Silla de Oficina', location: 'CDMX', stock: 2, min: 5, status: 'Bajo', cost: 1200, total: 2400 },
+  { id: 2, name: 'Papel para Impresora', location: 'Monterrey', stock: 3, min: 10, status: 'Crítico', cost: 120, total: 360 },
+  { id: 3, name: 'Llanta de Repuesto', location: 'Guadalajara', stock: 1, min: 3, status: 'Bajo', cost: 2500, total: 2500 },
+  { id: 4, name: 'Chaleco de Seguridad', location: 'Culiacán', stock: 4, min: 5, status: 'Bajo', cost: 350, total: 1400 },
 ];
 
 const recentTransactions = [
-  { id: 1, item: 'Office Chair', location: 'CDMX', type: 'OUT', quantity: 1, date: '2023-06-01', user: 'Maria G.' },
-  { id: 2, name: 'Printer Paper', location: 'Monterrey', type: 'IN', quantity: 25, date: '2023-05-30', user: 'Carlos R.' },
-  { id: 3, name: 'Spare Tire', location: 'Guadalajara', type: 'OUT', quantity: 2, date: '2023-05-29', user: 'Juan P.' },
+  { id: 1, item: 'Silla de Oficina', location: 'CDMX', type: 'OUT', quantity: 1, date: '2023-06-01', user: 'María G.' },
+  { id: 2, name: 'Papel para Impresora', location: 'Monterrey', type: 'IN', quantity: 25, date: '2023-05-30', user: 'Carlos R.' },
+  { id: 3, name: 'Llanta de Repuesto', location: 'Guadalajara', type: 'OUT', quantity: 2, date: '2023-05-29', user: 'Juan P.' },
   { id: 4, name: 'Laptop', location: 'CDMX', type: 'IN', quantity: 5, date: '2023-05-28', user: 'Ana L.' },
-  { id: 5, name: 'Safety Vest', location: 'Culiacán', type: 'OUT', quantity: 3, date: '2023-05-28', user: 'Diego M.' },
+  { id: 5, name: 'Chaleco de Seguridad', location: 'Culiacán', type: 'OUT', quantity: 3, date: '2023-05-28', user: 'Diego M.' },
 ];
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [totalInventoryValue, setTotalInventoryValue] = useState(239320); // Valor total del inventario
   
   useEffect(() => {
     // Check authentication
@@ -53,10 +56,17 @@ const Dashboard = () => {
   // Find the function that defines badge variants and update it
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'Low': return 'destructive';
-      case 'Critical': return 'destructive';
+      case 'Bajo': return 'destructive';
+      case 'Crítico': return 'destructive';
       default: return 'secondary';
     }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    }).format(amount);
   };
 
   return (
@@ -66,28 +76,28 @@ const Dashboard = () => {
         <MotionContainer>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatsCard 
-              title="Total Items" 
+              title="Total de Artículos" 
               value="256" 
               icon={<Package className="h-5 w-5" />}
               trend={{ value: 12, isPositive: true }}
             />
             <StatsCard 
-              title="Locations" 
+              title="Ubicaciones" 
               value="4" 
               icon={<Map className="h-5 w-5" />}
             />
             <StatsCard 
-              title="Transactions (30d)" 
+              title="Transacciones (30d)" 
               value="87" 
               icon={<ArrowUpDown className="h-5 w-5" />}
               trend={{ value: 4, isPositive: true }}
             />
             <StatsCard 
-              title="Low Stock Alerts" 
-              value="8" 
-              icon={<AlertTriangle className="h-5 w-5" />}
-              trend={{ value: 2, isPositive: false }}
-              className="border-l-4 border-amber-400"
+              title="Valor de Inventario" 
+              value={formatCurrency(totalInventoryValue)} 
+              icon={<DollarSign className="h-5 w-5" />}
+              trend={{ value: 5, isPositive: true }}
+              className="border-l-4 border-green-400"
             />
           </div>
         </MotionContainer>
@@ -95,34 +105,48 @@ const Dashboard = () => {
         {/* Low Stock Items */}
         <MotionContainer delay={100} className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-medium">Low Stock Items</h2>
+            <h2 className="text-xl font-medium">Artículos con Bajo Stock</h2>
             <Button variant="outline" size="sm" onClick={() => navigate('/inventory')}>
-              View All Inventory
+              Ver Todo el Inventario
             </Button>
           </div>
           
           <DataTable 
             data={lowStockItems}
             columns={[
-              { key: 'name', header: 'Item' },
-              { key: 'location', header: 'Location' },
+              { key: 'name', header: 'Artículo' },
+              { key: 'location', header: 'Ubicación' },
               { 
                 key: 'stock', 
-                header: 'Current Stock',
+                header: 'Stock Actual',
                 cell: (item) => (
                   <div className="font-medium">{item.stock}</div>
                 )
               },
               { 
                 key: 'min', 
-                header: 'Min. Required',
+                header: 'Mín. Requerido',
                 cell: (item) => (
                   <div className="text-muted-foreground">{item.min}</div>
                 )
               },
               { 
+                key: 'cost', 
+                header: 'Costo Unitario',
+                cell: (item) => (
+                  <div className="text-green-700">{formatCurrency(item.cost)}</div>
+                )
+              },
+              { 
+                key: 'total', 
+                header: 'Valor Total',
+                cell: (item) => (
+                  <div className="text-green-700">{formatCurrency(item.total)}</div>
+                )
+              },
+              { 
                 key: 'status', 
-                header: 'Status',
+                header: 'Estado',
                 cell: (item) => (
                   <Badge 
                     variant={getStatusBadgeVariant(item.status)}
@@ -136,7 +160,7 @@ const Dashboard = () => {
                 header: '',
                 cell: () => (
                   <Button variant="ghost" size="sm">
-                    Restock
+                    Reabastecer
                   </Button>
                 )
               },
@@ -147,31 +171,31 @@ const Dashboard = () => {
         {/* Recent Transactions */}
         <MotionContainer delay={200} className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-medium">Recent Transactions</h2>
+            <h2 className="text-xl font-medium">Transacciones Recientes</h2>
             <Button variant="outline" size="sm" onClick={() => navigate('/transactions')}>
-              View All Transactions
+              Ver Todas las Transacciones
             </Button>
           </div>
           
           <DataTable 
             data={recentTransactions}
             columns={[
-              { key: 'item', header: 'Item' },
-              { key: 'location', header: 'Location' },
+              { key: 'item', header: 'Artículo' },
+              { key: 'location', header: 'Ubicación' },
               { 
                 key: 'type', 
-                header: 'Type',
+                header: 'Tipo',
                 cell: (item) => (
                   <div className="flex items-center">
                     {item.type === 'IN' ? (
                       <>
                         <ArrowDown className="h-3 w-3 text-green-600 mr-1" />
-                        <span className="text-green-600 font-medium">IN</span>
+                        <span className="text-green-600 font-medium">ENTRADA</span>
                       </>
                     ) : (
                       <>
                         <ArrowUp className="h-3 w-3 text-blue-600 mr-1" />
-                        <span className="text-blue-600 font-medium">OUT</span>
+                        <span className="text-blue-600 font-medium">SALIDA</span>
                       </>
                     )}
                   </div>
@@ -179,14 +203,14 @@ const Dashboard = () => {
               },
               { 
                 key: 'quantity', 
-                header: 'Qty',
+                header: 'Cant.',
                 cell: (item) => (
                   <div className="font-medium">{item.quantity}</div>
                 )
               },
               { 
                 key: 'date', 
-                header: 'Date',
+                header: 'Fecha',
                 cell: (item) => (
                   <div className="flex items-center text-muted-foreground">
                     <Clock className="h-3 w-3 mr-1" />
@@ -194,7 +218,7 @@ const Dashboard = () => {
                   </div>
                 )
               },
-              { key: 'user', header: 'User' },
+              { key: 'user', header: 'Usuario' },
             ]}
           />
         </MotionContainer>

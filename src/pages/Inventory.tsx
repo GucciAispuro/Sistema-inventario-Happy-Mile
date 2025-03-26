@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -11,21 +12,22 @@ import {
   Search,
   Filter,
   ArrowUpDown,
-  Download
+  Download,
+  DollarSign
 } from 'lucide-react';
 
-// Mock data for inventory items
+// Mock data for inventory items with cost added
 const inventoryItems = [
-  { id: 1, name: 'Office Chair', category: 'Furniture', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal' },
-  { id: 2, name: 'Printer Paper', category: 'Office Supplies', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Low' },
-  { id: 3, name: 'Laptop', category: 'Electronics', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal' },
-  { id: 4, name: 'Office Chair', category: 'Furniture', location: 'Monterrey', quantity: 7, min_stock: 5, status: 'Normal' },
-  { id: 5, name: 'Printer Paper', category: 'Office Supplies', location: 'Monterrey', quantity: 3, min_stock: 10, status: 'Critical' },
-  { id: 6, name: 'Spare Tire', category: 'Vehicle Parts', location: 'Guadalajara', quantity: 5, min_stock: 8, status: 'Low' },
-  { id: 7, name: 'Safety Vest', category: 'Safety Equipment', location: 'Culiacán', quantity: 4, min_stock: 5, status: 'Low' },
-  { id: 8, name: 'Printer Toner', category: 'Office Supplies', location: 'Guadalajara', quantity: 9, min_stock: 2, status: 'Normal' },
-  { id: 9, name: 'First Aid Kit', category: 'Safety Equipment', location: 'CDMX', quantity: 12, min_stock: 5, status: 'Normal' },
-  { id: 10, name: 'Desk Lamp', category: 'Furniture', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal' },
+  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000 },
+  { id: 2, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Bajo', cost: 120, total_value: 960 },
+  { id: 3, name: 'Laptop', category: 'Electrónicos', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal', cost: 15000, total_value: 180000 },
+  { id: 4, name: 'Silla de Oficina', category: 'Mobiliario', location: 'Monterrey', quantity: 7, min_stock: 5, status: 'Normal', cost: 1200, total_value: 8400 },
+  { id: 5, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'Monterrey', quantity: 3, min_stock: 10, status: 'Crítico', cost: 120, total_value: 360 },
+  { id: 6, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', location: 'Guadalajara', quantity: 5, min_stock: 8, status: 'Bajo', cost: 2500, total_value: 12500 },
+  { id: 7, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', location: 'Culiacán', quantity: 4, min_stock: 5, status: 'Bajo', cost: 350, total_value: 1400 },
+  { id: 8, name: 'Tóner para Impresora', category: 'Material de Oficina', location: 'Guadalajara', quantity: 9, min_stock: 2, status: 'Normal', cost: 800, total_value: 7200 },
+  { id: 9, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', location: 'CDMX', quantity: 12, min_stock: 5, status: 'Normal', cost: 650, total_value: 7800 },
+  { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700 },
 ];
 
 const Inventory = () => {
@@ -33,6 +35,7 @@ const Inventory = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState(inventoryItems);
+  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   
   useEffect(() => {
     // Check authentication
@@ -59,45 +62,63 @@ const Inventory = () => {
       );
       setFilteredItems(filtered);
     }
-  }, [searchQuery]);
+    
+    // Calculate total inventory value
+    const total = filteredItems.reduce((sum, item) => sum + item.total_value, 0);
+    setTotalInventoryValue(total);
+  }, [searchQuery, filteredItems]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'Low': return 'destructive';
-      case 'Critical': return 'destructive';
+      case 'Bajo': return 'destructive';
+      case 'Crítico': return 'destructive';
       default: return 'secondary';
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    }).format(amount);
+  };
+
   return (
-    <Layout title="Inventory">
+    <Layout title="Inventario">
       <div className="space-y-6">
         <MotionContainer>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search items, categories, locations..." 
+                placeholder="Buscar artículos, categorías, ubicaciones..." 
                 className="pl-9 subtle-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="bg-secondary/80 px-3 py-1.5 rounded-md flex items-center">
+                <DollarSign className="h-4 w-4 mr-1 text-green-600" />
+                <span className="text-sm font-medium">
+                  Valor Total: {formatCurrency(totalInventoryValue)}
+                </span>
+              </div>
+              
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 mr-2" />
-                Filter
+                Filtrar
               </Button>
               
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                Exportar
               </Button>
               
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Item
+                Añadir Artículo
               </Button>
             </div>
           </div>
@@ -107,26 +128,40 @@ const Inventory = () => {
           <DataTable 
             data={filteredItems}
             columns={[
-              { key: 'name', header: 'Item Name' },
-              { key: 'category', header: 'Category' },
-              { key: 'location', header: 'Location' },
+              { key: 'name', header: 'Nombre del Artículo' },
+              { key: 'category', header: 'Categoría' },
+              { key: 'location', header: 'Ubicación' },
               { 
                 key: 'quantity', 
-                header: 'Quantity',
+                header: 'Cantidad',
                 cell: (item) => (
                   <div className="font-medium">{item.quantity}</div>
                 )
               },
               { 
+                key: 'cost', 
+                header: 'Costo Unitario',
+                cell: (item) => (
+                  <div className="font-medium text-green-700">{formatCurrency(item.cost)}</div>
+                )
+              },
+              { 
+                key: 'total_value', 
+                header: 'Valor Total',
+                cell: (item) => (
+                  <div className="font-medium text-green-700">{formatCurrency(item.total_value)}</div>
+                )
+              },
+              { 
                 key: 'min_stock', 
-                header: 'Min. Required',
+                header: 'Mín. Requerido',
                 cell: (item) => (
                   <div className="text-muted-foreground">{item.min_stock}</div>
                 )
               },
               { 
                 key: 'status', 
-                header: 'Status',
+                header: 'Estado',
                 cell: (item) => (
                   <Badge variant={getStatusVariant(item.status)}>
                     {item.status}
@@ -140,11 +175,11 @@ const Inventory = () => {
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm">
                       <ArrowUpDown className="h-3 w-3 mr-1" />
-                      Move
+                      Mover
                     </Button>
                     {userRole === 'admin' && (
                       <Button variant="ghost" size="sm">
-                        Edit
+                        Editar
                       </Button>
                     )}
                   </div>
