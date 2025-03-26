@@ -200,10 +200,10 @@ const TransaccionesColaborador = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Tipo de Transacción</FormLabel>
-                          <div className="flex gap-4">
+                          <div className="flex flex-wrap gap-2 w-full">
                             <FormControl>
-                              <div className="flex items-center space-x-4">
-                                <label className={`flex items-center justify-center p-2 rounded-md transition-colors ${field.value === 'IN' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-background border hover:bg-muted/50'}`}>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <label className={`flex-1 min-w-[120px] flex items-center justify-center p-2 rounded-md transition-colors ${field.value === 'IN' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-background border hover:bg-muted/50'}`}>
                                   <input
                                     type="radio"
                                     value="IN"
@@ -215,7 +215,7 @@ const TransaccionesColaborador = () => {
                                   <span>Entrada</span>
                                 </label>
                                 
-                                <label className={`flex items-center justify-center p-2 rounded-md transition-colors ${field.value === 'OUT' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-background border hover:bg-muted/50'}`}>
+                                <label className={`flex-1 min-w-[120px] flex items-center justify-center p-2 rounded-md transition-colors ${field.value === 'OUT' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-background border hover:bg-muted/50'}`}>
                                   <input
                                     type="radio"
                                     value="OUT"
