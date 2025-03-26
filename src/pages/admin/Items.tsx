@@ -14,16 +14,16 @@ import {
   Trash2
 } from 'lucide-react';
 
-// Mock data for items
+// Updated mock data for items in Spanish
 const items = [
-  { id: 1, name: 'Office Chair', category: 'Furniture', description: 'Ergonomic office chair with adjustable height', min_stock: 5, lead_time: 14, unit: 'pieces' },
-  { id: 2, name: 'Printer Paper', category: 'Office Supplies', description: 'A4 size printer paper, 500 sheets per pack', min_stock: 10, lead_time: 7, unit: 'packs' },
-  { id: 3, name: 'Laptop', category: 'Electronics', description: 'Business laptop with i5 processor, 8GB RAM, 256GB SSD', min_stock: 3, lead_time: 21, unit: 'pieces' },
-  { id: 4, name: 'Spare Tire', category: 'Vehicle Parts', description: 'Standard spare tire for company vehicles', min_stock: 8, lead_time: 10, unit: 'pieces' },
-  { id: 5, name: 'Safety Vest', category: 'Safety Equipment', description: 'High visibility safety vest with reflective strips', min_stock: 5, lead_time: 5, unit: 'pieces' },
-  { id: 6, name: 'Printer Toner', category: 'Office Supplies', description: 'Compatible toner cartridge for office printers', min_stock: 2, lead_time: 7, unit: 'pieces' },
-  { id: 7, name: 'First Aid Kit', category: 'Safety Equipment', description: 'Standard first aid kit for emergency use', min_stock: 5, lead_time: 7, unit: 'kits' },
-  { id: 8, name: 'Desk Lamp', category: 'Furniture', description: 'LED desk lamp with adjustable brightness', min_stock: 3, lead_time: 7, unit: 'pieces' },
+  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', description: 'Silla de oficina ergonómica con altura ajustable', min_stock: 5, lead_time: 14, unit: 'piezas' },
+  { id: 2, name: 'Papel de Impresora', category: 'Suministros de Oficina', description: 'Papel tamaño A4 para impresora, 500 hojas por paquete', min_stock: 10, lead_time: 7, unit: 'paquetes' },
+  { id: 3, name: 'Laptop', category: 'Electrónicos', description: 'Laptop empresarial con procesador i5, 8GB RAM, SSD de 256GB', min_stock: 3, lead_time: 21, unit: 'piezas' },
+  { id: 4, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', description: 'Llanta de repuesto estándar para vehículos de la empresa', min_stock: 8, lead_time: 10, unit: 'piezas' },
+  { id: 5, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', description: 'Chaleco de seguridad de alta visibilidad con tiras reflectantes', min_stock: 5, lead_time: 5, unit: 'piezas' },
+  { id: 6, name: 'Tóner de Impresora', category: 'Suministros de Oficina', description: 'Cartucho de tóner compatible con impresoras de oficina', min_stock: 2, lead_time: 7, unit: 'piezas' },
+  { id: 7, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', description: 'Kit de primeros auxilios estándar para uso de emergencia', min_stock: 5, lead_time: 7, unit: 'kits' },
+  { id: 8, name: 'Lámpara de Escritorio', category: 'Mobiliario', description: 'Lámpara de escritorio LED con brillo ajustable', min_stock: 3, lead_time: 7, unit: 'piezas' },
 ];
 
 const AdminItems = () => {
@@ -65,14 +65,14 @@ const AdminItems = () => {
   }, [searchQuery]);
 
   return (
-    <Layout title="Item Management">
+    <Layout title="Gestión de Artículos">
       <div className="space-y-6">
         <MotionContainer>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search items..." 
+                placeholder="Buscar artículos..." 
                 className="pl-9 subtle-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -82,12 +82,12 @@ const AdminItems = () => {
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 mr-2" />
-                Filter
+                Filtrar
               </Button>
               
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Item
+                Añadir Artículo
               </Button>
             </div>
           </div>
@@ -97,11 +97,11 @@ const AdminItems = () => {
           <DataTable 
             data={filteredItems}
             columns={[
-              { key: 'name', header: 'Item Name' },
-              { key: 'category', header: 'Category' },
+              { key: 'name', header: 'Nombre del Artículo' },
+              { key: 'category', header: 'Categoría' },
               { 
                 key: 'description', 
-                header: 'Description',
+                header: 'Descripción',
                 cell: (item) => (
                   <div className="max-w-[250px] truncate text-muted-foreground">
                     {item.description}
@@ -110,19 +110,19 @@ const AdminItems = () => {
               },
               { 
                 key: 'min_stock', 
-                header: 'Min. Stock',
+                header: 'Stock Mínimo',
                 cell: (item) => (
                   <div className="font-medium">{item.min_stock}</div>
                 )
               },
               { 
                 key: 'lead_time', 
-                header: 'Lead Time',
+                header: 'Tiempo de Entrega',
                 cell: (item) => (
-                  <div>{item.lead_time} days</div>
+                  <div>{item.lead_time} días</div>
                 )
               },
-              { key: 'unit', header: 'Unit' },
+              { key: 'unit', header: 'Unidad' },
               { 
                 key: 'actions', 
                 header: '',
@@ -130,11 +130,11 @@ const AdminItems = () => {
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm">
                       <Edit className="h-4 w-4 mr-1" />
-                      Edit
+                      Editar
                     </Button>
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
+                      Eliminar
                     </Button>
                   </div>
                 )
