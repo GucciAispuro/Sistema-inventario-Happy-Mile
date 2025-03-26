@@ -6,6 +6,7 @@ import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
   Search,
@@ -28,9 +29,12 @@ const items = [
 
 const AdminItems = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState(items);
+  const [showFilters, setShowFilters] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
   
   useEffect(() => {
     // Check authentication
@@ -51,18 +55,53 @@ const AdminItems = () => {
   }, [navigate]);
   
   useEffect(() => {
-    if (searchQuery.trim() === '') {
+    if (searchQuery.trim() === '' && categoryFilter === '') {
       setFilteredItems(items);
     } else {
       const query = searchQuery.toLowerCase();
-      const filtered = items.filter(item => 
-        item.name.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query)
-      );
+      const filtered = items.filter(item => {
+        const matchesSearch = query === '' ? true : 
+          item.name.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query);
+        
+        const matchesCategory = categoryFilter === '' ? true : 
+          item.category === categoryFilter;
+        
+        return matchesSearch && matchesCategory;
+      });
       setFilteredItems(filtered);
     }
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
+
+  const handleAddItem = () => {
+    // En una implementación real, esto abriría un modal o navegaría a un formulario
+    toast({
+      title: "Añadir Artículo",
+      description: "Esta funcionalidad estará disponible próximamente.",
+    });
+  };
+
+  const handleEdit = (item) => {
+    toast({
+      title: "Editar Artículo",
+      description: `Editando: ${item.name}`,
+    });
+  };
+
+  const handleDelete = (item) => {
+    toast({
+      title: "Eliminar Artículo",
+      description: `¿Está seguro que desea eliminar ${item.name}?`,
+    });
+  };
+
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
+  // Get unique categories for filter
+  const categories = Array.from(new Set(items.map(item => item.category)));
 
   return (
     <Layout title="Gestión de Artículos">
@@ -80,17 +119,38 @@ const AdminItems = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={toggleFilters}>
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrar
               </Button>
               
-              <Button size="sm">
+              <Button size="sm" onClick={handleAddItem}>
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir Artículo
               </Button>
             </div>
           </div>
+          
+          {showFilters && (
+            <div className="mt-4 p-4 bg-card rounded-md border">
+              <h3 className="font-medium mb-2">Filtros</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Categoría</label>
+                  <select 
+                    className="w-full p-2 rounded-md border"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="">Todas las categorías</option>
+                    {categories.map((category, index) => (
+                      <option key={index} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </MotionContainer>
         
         <MotionContainer delay={100}>
@@ -128,11 +188,11 @@ const AdminItems = () => {
                 header: '',
                 cell: (item) => (
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item)}>
                       <Trash2 className="h-4 w-4 mr-1" />
                       Eliminar
                     </Button>

@@ -26,6 +26,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
     else if (path.includes('/admin/items')) newTitle = 'Gestión de Artículos';
     else if (path.includes('/admin/locations')) newTitle = 'Gestión de Ubicaciones';
     else if (path.includes('/admin/users')) newTitle = 'Gestión de Usuarios';
+    else if (path.includes('/colaborador')) newTitle = 'Entrada y Salida';
     
     setPageTitle(newTitle);
   }, [location, title]);
