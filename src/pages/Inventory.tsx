@@ -13,8 +13,16 @@ import {
   Filter,
   ArrowUpDown,
   Download,
-  DollarSign
+  DollarSign,
+  MapPin
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Mock data for inventory items with cost added
 const inventoryItems = [
@@ -30,10 +38,14 @@ const inventoryItems = [
   { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700 },
 ];
 
+// Get unique locations
+const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
+
 const Inventory = () => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [filteredItems, setFilteredItems] = useState(inventoryItems);
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   
@@ -51,22 +63,29 @@ const Inventory = () => {
   }, [navigate]);
   
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredItems(inventoryItems);
-    } else {
+    let filtered = inventoryItems;
+    
+    // Apply search filter
+    if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
-      const filtered = inventoryItems.filter(item => 
+      filtered = filtered.filter(item => 
         item.name.toLowerCase().includes(query) ||
         item.category.toLowerCase().includes(query) ||
         item.location.toLowerCase().includes(query)
       );
-      setFilteredItems(filtered);
     }
     
+    // Apply location filter
+    if (selectedLocation) {
+      filtered = filtered.filter(item => item.location === selectedLocation);
+    }
+    
+    setFilteredItems(filtered);
+    
     // Calculate total inventory value
-    const total = filteredItems.reduce((sum, item) => sum + item.total_value, 0);
+    const total = filtered.reduce((sum, item) => sum + item.total_value, 0);
     setTotalInventoryValue(total);
-  }, [searchQuery, filteredItems]);
+  }, [searchQuery, selectedLocation]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -106,6 +125,23 @@ const Inventory = () => {
                 </span>
               </div>
               
+              <div className="flex items-center gap-2">
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger className="w-[180px]">
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filtrar por ubicación" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas las ubicaciones</SelectItem>
+                    {locations.map(location => (
+                      <SelectItem key={location} value={location}>{location}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrar
@@ -130,7 +166,16 @@ const Inventory = () => {
             columns={[
               { key: 'name', header: 'Nombre del Artículo' },
               { key: 'category', header: 'Categoría' },
-              { key: 'location', header: 'Ubicación' },
+              { 
+                key: 'location', 
+                header: 'Ubicación',
+                cell: (item) => (
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-1 text-primary" />
+                    {item.location}
+                  </div>
+                )
+              },
               { 
                 key: 'quantity', 
                 header: 'Cantidad',
