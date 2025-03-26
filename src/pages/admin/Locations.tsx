@@ -88,6 +88,7 @@ const AdminLocations = () => {
     manager: ''
   });
   const [currentLocation, setCurrentLocation] = useState<any>(null);
+  const [allLocations, setAllLocations] = useState(locations);
   
   useEffect(() => {
     // Check authentication
@@ -109,10 +110,10 @@ const AdminLocations = () => {
   
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredLocations(locations);
+      setFilteredLocations(allLocations);
     } else {
       const query = searchQuery.toLowerCase();
-      const filtered = locations.filter(location => 
+      const filtered = allLocations.filter(location => 
         location.name.toLowerCase().includes(query) ||
         location.address.toLowerCase().includes(query) ||
         location.manager.toLowerCase().includes(query)
@@ -121,9 +122,9 @@ const AdminLocations = () => {
     }
     
     // Calculate total overall value
-    const total = locations.reduce((sum, location) => sum + location.total_value, 0);
+    const total = allLocations.reduce((sum, location) => sum + location.total_value, 0);
     setTotalOverallValue(total);
-  }, [searchQuery]);
+  }, [searchQuery, allLocations]);
 
   const handleAddLocation = () => {
     setShowAddLocationDialog(true);
@@ -145,7 +146,20 @@ const AdminLocations = () => {
       return;
     }
 
-    // Simular añadir la ubicación (en una app real, esto enviaría datos al backend)
+    // Crear nueva ubicación con ID único
+    const newLocationWithId = {
+      id: allLocations.length + 1,
+      name: newLocation.name,
+      address: newLocation.address,
+      manager: newLocation.manager,
+      items_count: 0,
+      total_value: 0
+    };
+
+    // Actualizar estado
+    setAllLocations([...allLocations, newLocationWithId]);
+
+    // Mostrar notificación de éxito
     toast({
       title: "Ubicación añadida",
       description: `Se ha añadido ${newLocation.name} correctamente`,
@@ -173,7 +187,14 @@ const AdminLocations = () => {
       return;
     }
 
-    // Simular actualizar la ubicación (en una app real, esto enviaría datos al backend)
+    // Actualizar la ubicación en el estado
+    const updatedLocations = allLocations.map(loc => 
+      loc.id === currentLocation.id ? currentLocation : loc
+    );
+    
+    setAllLocations(updatedLocations);
+
+    // Mostrar notificación de éxito
     toast({
       title: "Ubicación actualizada",
       description: `Se ha actualizado ${currentLocation.name} correctamente`,
@@ -181,6 +202,32 @@ const AdminLocations = () => {
 
     // Cerrar diálogo
     setShowEditLocationDialog(false);
+  };
+
+  const handleDeleteLocation = (locationId: number) => {
+    // Verificar si hay artículos en la ubicación
+    const locationToDelete = allLocations.find(loc => loc.id === locationId);
+    
+    if (locationToDelete && locationToDelete.items_count > 0) {
+      toast({
+        title: "No se puede eliminar",
+        description: "Esta ubicación contiene artículos. Traslade los artículos primero.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Confirmar eliminación
+    if (confirm(`¿Está seguro que desea eliminar la ubicación ${locationToDelete?.name}?`)) {
+      // Eliminar ubicación
+      const updatedLocations = allLocations.filter(loc => loc.id !== locationId);
+      setAllLocations(updatedLocations);
+      
+      toast({
+        title: "Ubicación eliminada",
+        description: `Se ha eliminado la ubicación correctamente`,
+      });
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -226,7 +273,7 @@ const AdminLocations = () => {
             columns={[
               { 
                 key: 'name', 
-                header: 'Nombre de Ubicación',
+                header: 'Nombre',
                 cell: (location) => (
                   <div className="font-medium flex items-center">
                     <MapPin className="h-4 w-4 mr-2 text-primary" />
@@ -257,7 +304,10 @@ const AdminLocations = () => {
                   <div className="font-medium text-green-700">{formatCurrency(location.total_value)}</div>
                 )
               },
-              { key: 'manager', header: 'Administrador' },
+              { 
+                key: 'manager', 
+                header: 'Administrador'
+              },
               { 
                 key: 'actions', 
                 header: '',
@@ -267,7 +317,12 @@ const AdminLocations = () => {
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteLocation(location.id)}
+                    >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Eliminar
                     </Button>
