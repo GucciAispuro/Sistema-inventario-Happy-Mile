@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -50,6 +49,15 @@ const Dashboard = () => {
     const role = localStorage.getItem('userRole');
     setUserRole(role);
   }, [navigate]);
+
+  // Find the function that defines badge variants and update it
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'Low': return 'destructive';
+      case 'Critical': return 'destructive';
+      default: return 'secondary';
+    }
+  };
 
   return (
     <Layout title="Dashboard">
@@ -117,7 +125,7 @@ const Dashboard = () => {
                 header: 'Status',
                 cell: (item) => (
                   <Badge 
-                    variant={item.status === 'Critical' ? 'danger' : 'warning'}
+                    variant={getStatusBadgeVariant(item.status)}
                   >
                     {item.status}
                   </Badge>

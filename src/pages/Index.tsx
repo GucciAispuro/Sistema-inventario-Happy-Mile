@@ -7,11 +7,10 @@ const Index = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Check if user is already authenticated
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    if (isAuthenticated) {
-      navigate('/dashboard');
-    }
+    // Auto-authenticate with admin role
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('userRole', 'admin');
+    navigate('/dashboard');
   }, [navigate]);
   
   return (

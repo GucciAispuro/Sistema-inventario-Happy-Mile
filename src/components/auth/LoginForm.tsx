@@ -18,30 +18,13 @@ const LoginForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please enter both email and password",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+    // Auto-login without validation
     setIsLoading(true);
     
-    // This is a mock login - would be replaced with Supabase auth
     setTimeout(() => {
       setIsLoading(false);
       
-      // Mock different user roles based on email prefixes
-      if (email.startsWith('admin')) {
-        localStorage.setItem('userRole', 'admin');
-      } else if (email.startsWith('ops')) {
-        localStorage.setItem('userRole', 'ops');
-      } else {
-        localStorage.setItem('userRole', 'viewer');
-      }
-      
+      localStorage.setItem('userRole', 'admin');
       localStorage.setItem('isAuthenticated', 'true');
       
       toast({
@@ -50,7 +33,7 @@ const LoginForm = () => {
       });
       
       navigate('/dashboard');
-    }, 1500);
+    }, 500);
   };
   
   return (
@@ -61,7 +44,7 @@ const LoginForm = () => {
         </div>
         <h1 className="text-2xl font-semibold">Road Logistics Inventory</h1>
         <p className="text-muted-foreground mt-2">
-          Sign in to manage your inventory system
+          Login disabled for testing - click Sign In to continue
         </p>
       </MotionContainer>
       
@@ -76,7 +59,6 @@ const LoginForm = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="subtle-input"
-              required
             />
           </div>
           
@@ -94,18 +76,15 @@ const LoginForm = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="subtle-input"
-              required
             />
           </div>
           
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isLoading ? "Signing in..." : "Sign in (Auto Login Enabled)"}
           </Button>
           
           <div className="text-center text-sm text-muted-foreground">
-            <p>
-              Use 'admin@', 'ops@', or 'viewer@' prefix for different roles
-            </p>
+            <p>Login is disabled for testing - you'll be signed in as Admin</p>
           </div>
         </form>
       </MotionContainer>
