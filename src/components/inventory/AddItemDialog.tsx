@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle } from 'lucide-react';
 
 interface AddItemDialogProps {
   open: boolean;
@@ -33,24 +34,64 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     location: '',
     quantity: 0,
     min_stock: 0,
-    cost: 0
+    cost: 0,
+    delivery_time: 0 // Nuevo campo para tiempo de entrega (en días)
   });
   
-  const categories = [
+  // Lista predefinida de categorías
+  const defaultCategories = [
     'Mobiliario', 
     'Material de Oficina', 
     'Electrónicos', 
     'Piezas de Vehículo', 
     'Equipo de Seguridad'
   ];
+  
+  // Estado para categorías personalizadas
+  const [categories, setCategories] = useState(defaultCategories);
+  
+  // Estado para mostrar/ocultar la entrada de nueva categoría
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewItem({
       ...newItem,
-      [name]: name === 'quantity' || name === 'min_stock' || name === 'cost' 
+      [name]: name === 'quantity' || name === 'min_stock' || name === 'cost' || name === 'delivery_time'
         ? parseFloat(value) || 0 
         : value
+    });
+  };
+
+  // Función para añadir una nueva categoría
+  const handleAddCategory = () => {
+    if (newCategory.trim() === '') {
+      toast({
+        title: "Error",
+        description: "El nombre de la categoría no puede estar vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (categories.includes(newCategory.trim())) {
+      toast({
+        title: "Error",
+        description: "Esta categoría ya existe",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setCategories([...categories, newCategory.trim()]);
+    setNewItem({...newItem, category: newCategory.trim()});
+    setNewCategory('');
+    setShowNewCategoryInput(false);
+    
+    toast({
+      title: "Categoría añadida",
+      description: `La categoría "${newCategory.trim()}" ha sido añadida correctamente`
     });
   };
 
@@ -112,6 +153,15 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       return;
     }
 
+    if (newItem.delivery_time < 0) {
+      toast({
+        title: "Error",
+        description: "El tiempo de entrega no puede ser negativo",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Crear el nuevo artículo con valores calculados
     const newItemWithDetails = {
       ...newItem,
@@ -130,7 +180,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       location: '',
       quantity: 0,
       min_stock: 0,
-      cost: 0
+      cost: 0,
+      delivery_time: 0
     });
     
     // Cerrar el diálogo
@@ -159,21 +210,58 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
             
             <div className="space-y-2">
               <Label htmlFor="category">Categoría *</Label>
-              <Select 
-                value={newItem.category} 
-                onValueChange={(value) => setNewItem({...newItem, category: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!showNewCategoryInput ? (
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={newItem.category} 
+                    onValueChange={(value) => setNewItem({...newItem, category: value})}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleccionar categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => setShowNewCategoryInput(true)}
+                    title="Añadir nueva categoría"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="Nueva categoría..."
+                    className="flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    size="sm"
+                    onClick={handleAddCategory}
+                  >
+                    Añadir
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowNewCategoryInput(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -221,17 +309,31 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="cost">Costo Unitario (MXN) *</Label>
-              <Input
-                id="cost"
-                name="cost"
-                type="number"
-                value={newItem.cost}
-                onChange={handleInputChange}
-                min="0"
-                step="0.01"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cost">Costo Unitario (MXN) *</Label>
+                <Input
+                  id="cost"
+                  name="cost"
+                  type="number"
+                  value={newItem.cost}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="delivery_time">Tiempo de Entrega (días) *</Label>
+                <Input
+                  id="delivery_time"
+                  name="delivery_time"
+                  type="number"
+                  value={newItem.delivery_time}
+                  onChange={handleInputChange}
+                  min="0"
+                />
+              </div>
             </div>
           </div>
           
