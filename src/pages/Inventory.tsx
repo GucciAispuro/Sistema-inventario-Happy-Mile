@@ -7,6 +7,8 @@ import MotionContainer from '@/components/ui/MotionContainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import AddItemDialog from '@/components/inventory/AddItemDialog';
 import { 
   Plus, 
   Search,
@@ -25,7 +27,7 @@ import {
 } from "@/components/ui/select";
 
 // Mock data for inventory items with cost added
-const inventoryItems = [
+const initialInventoryItems = [
   { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000 },
   { id: 2, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Bajo', cost: 120, total_value: 960 },
   { id: 3, name: 'Laptop', category: 'Electrónicos', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal', cost: 15000, total_value: 180000 },
@@ -38,16 +40,19 @@ const inventoryItems = [
   { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700 },
 ];
 
-// Get unique locations
-const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
-
 const Inventory = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
-  const [filteredItems, setFilteredItems] = useState(inventoryItems);
+  const [inventoryItems, setInventoryItems] = useState(initialInventoryItems);
+  const [filteredItems, setFilteredItems] = useState(initialInventoryItems);
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  
+  // Get unique locations
+  const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
   
   useEffect(() => {
     // Check authentication
@@ -85,7 +90,16 @@ const Inventory = () => {
     // Calculate total inventory value
     const total = filtered.reduce((sum, item) => sum + item.total_value, 0);
     setTotalInventoryValue(total);
-  }, [searchQuery, selectedLocation]);
+  }, [searchQuery, selectedLocation, inventoryItems]);
+
+  const handleAddItem = (newItem) => {
+    setInventoryItems([...inventoryItems, newItem]);
+    
+    toast({
+      title: "Artículo añadido",
+      description: `${newItem.name} ha sido añadido al inventario`,
+    });
+  };
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -152,7 +166,7 @@ const Inventory = () => {
                 Exportar
               </Button>
               
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowAddItemDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir Artículo
               </Button>
@@ -234,6 +248,14 @@ const Inventory = () => {
           />
         </MotionContainer>
       </div>
+
+      {/* Add Item Dialog */}
+      <AddItemDialog
+        open={showAddItemDialog}
+        onOpenChange={setShowAddItemDialog}
+        locations={locations}
+        onAddItem={handleAddItem}
+      />
     </Layout>
   );
 };
