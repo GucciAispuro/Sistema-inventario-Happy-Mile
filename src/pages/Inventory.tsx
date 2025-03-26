@@ -45,7 +45,7 @@ const Inventory = () => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [filteredItems, setFilteredItems] = useState(inventoryItems);
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   
@@ -76,7 +76,7 @@ const Inventory = () => {
     }
     
     // Apply location filter
-    if (selectedLocation) {
+    if (selectedLocation !== 'all') {
       filtered = filtered.filter(item => item.location === selectedLocation);
     }
     
@@ -134,7 +134,7 @@ const Inventory = () => {
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las ubicaciones</SelectItem>
+                    <SelectItem value="all">Todas las ubicaciones</SelectItem>
                     {locations.map(location => (
                       <SelectItem key={location} value={location}>{location}</SelectItem>
                     ))}
