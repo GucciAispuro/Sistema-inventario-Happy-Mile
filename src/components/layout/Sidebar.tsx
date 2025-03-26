@@ -9,6 +9,7 @@ import {
   Map,
   Users,
   LogOut,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -35,6 +36,7 @@ export function AppSidebar() {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BoxesIcon, label: 'Inventario', path: '/inventory' },
     { icon: ArrowLeftRight, label: 'Transacciones', path: '/transactions' },
+    { icon: ClipboardCheck, label: 'Vista Colaborador', path: '/colaborador' },
   ];
 
   return (
