@@ -20,6 +20,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { User, MapPin, Shield, Bell } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddUserDialogProps {
   open: boolean;
@@ -47,7 +48,7 @@ const AddUserDialog = ({
   const [receiveAlerts, setReceiveAlerts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim() || !email.trim()) {
@@ -73,6 +74,23 @@ const AddUserDialog = ({
     setIsSubmitting(true);
     
     try {
+      // Save user to Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          name,
+          email,
+          role,
+          location,
+          receive_alerts: receiveAlerts
+        })
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Call the parent component's onAddUser function with the user data
       onAddUser({
         name,
         email,

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -19,66 +20,26 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import AddUserDialog from '@/components/admin/AddUserDialog';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock data for users
-const users = [
-  { 
-    id: 1, 
-    name: 'Maria Gonzalez', 
-    email: 'maria@example.com',
-    role: 'admin',
-    location: 'CDMX',
-    receiveAlerts: true
-  },
-  { 
-    id: 2, 
-    name: 'Carlos Rodriguez', 
-    email: 'carlos@example.com',
-    role: 'ops',
-    location: 'Monterrey',
-    receiveAlerts: true
-  },
-  { 
-    id: 3, 
-    name: 'Juan Perez', 
-    email: 'juan@example.com',
-    role: 'ops',
-    location: 'Guadalajara',
-    receiveAlerts: false
-  },
-  { 
-    id: 4, 
-    name: 'Ana Lopez', 
-    email: 'ana@example.com',
-    role: 'ops',
-    location: 'Culiacán',
-    receiveAlerts: true
-  },
-  { 
-    id: 5, 
-    name: 'Diego Martinez', 
-    email: 'diego@example.com',
-    role: 'viewer',
-    location: 'CDMX',
-    receiveAlerts: false
-  },
-  { 
-    id: 6, 
-    name: 'Laura Blanco', 
-    email: 'laura@example.com',
-    role: 'viewer',
-    location: 'Monterrey',
-    receiveAlerts: false
-  },
-];
+// Define user type
+interface User {
+  id: number | string;
+  name: string;
+  email: string;
+  role: string;
+  location: string;
+  receiveAlerts: boolean;
+}
 
 const AdminUsers = () => {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState(users);
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
-  const [nextUserId, setNextUserId] = useState(7); // For mock data ID generation
+  const [isLoading, setIsLoading] = useState(true);
   
   // Get unique locations for dropdown
   const locations = Array.from(new Set(users.map(user => user.location)));
@@ -99,7 +60,46 @@ const AdminUsers = () => {
     }
     
     setUserRole(role);
+    fetchUsers();
   }, [navigate]);
+  
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      // Fetch users from Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Transform data to match our User interface
+        const transformedUsers = data.map(user => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          location: user.location,
+          receiveAlerts: user.receive_alerts
+        }));
+        
+        setUsers(transformedUsers);
+        setFilteredUsers(transformedUsers);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los usuarios. Intente de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -114,75 +114,128 @@ const AdminUsers = () => {
       );
       setFilteredUsers(filtered);
     }
-  }, [searchQuery]);
+  }, [searchQuery, users]);
 
-  const handleToggleAlerts = (userId: number) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId 
-        ? { ...user, receiveAlerts: !user.receiveAlerts } 
-        : user
-    );
-    
-    // Update both users array and filtered users
-    Object.assign(users, updatedUsers);
-    setFilteredUsers(
-      searchQuery.trim() === '' 
-        ? updatedUsers 
-        : updatedUsers.filter(user => 
-            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.location.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-    );
-    
-    // Show toast notification
-    const user = users.find(user => user.id === userId);
-    if (user) {
-      const newState = !user.receiveAlerts;
+  const handleToggleAlerts = async (userId: number | string) => {
+    try {
+      // Find the user to toggle
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      
+      const newAlertsValue = !user.receiveAlerts;
+      
+      // Update the user in Supabase
+      const { error } = await supabase
+        .from('users')
+        .update({ receive_alerts: newAlertsValue })
+        .eq('id', userId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update local state
+      const updatedUsers = users.map(u => 
+        u.id === userId 
+          ? { ...u, receiveAlerts: newAlertsValue } 
+          : u
+      );
+      
+      setUsers(updatedUsers);
+      
+      // Update filtered users if needed
+      setFilteredUsers(
+        searchQuery.trim() === '' 
+          ? updatedUsers 
+          : updatedUsers.filter(u => 
+              u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              u.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              u.location.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+      );
+      
+      // Show toast notification
       toast({
         title: "Preferencia actualizada",
-        description: `${user.name} ${newState ? 'recibirá' : 'no recibirá'} alertas de stock bajo`,
+        description: `${user.name} ${newAlertsValue ? 'recibirá' : 'no recibirá'} alertas de stock bajo`,
+      });
+    } catch (error) {
+      console.error('Error toggling alerts:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la preferencia. Intente de nuevo.",
+        variant: "destructive"
       });
     }
   };
 
-  const handleAddUser = (userData: {
+  const handleAddUser = async (userData: {
     name: string;
     email: string;
     role: string;
     location: string;
     receiveAlerts: boolean;
   }) => {
-    // Create new user with generated ID
-    const newUser = {
-      id: nextUserId,
-      ...userData
-    };
-    
-    // Add to users array
-    users.push(newUser);
-    
-    // Update filtered users
-    if (searchQuery.trim() === '') {
-      setFilteredUsers([...users]);
-    } else {
-      setFilteredUsers(users.filter(user => 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.location.toLowerCase().includes(searchQuery.toLowerCase())
-      ));
+    try {
+      // Insert user into Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          location: userData.location,
+          receive_alerts: userData.receiveAlerts
+        })
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data && data.length > 0) {
+        // Add new user to state
+        const newUser = {
+          id: data[0].id,
+          name: data[0].name,
+          email: data[0].email,
+          role: data[0].role,
+          location: data[0].location,
+          receiveAlerts: data[0].receive_alerts
+        };
+        
+        const updatedUsers = [...users, newUser];
+        setUsers(updatedUsers);
+        
+        // Update filtered users if needed
+        if (searchQuery.trim() === '') {
+          setFilteredUsers(updatedUsers);
+        } else {
+          // Re-apply filter
+          const query = searchQuery.toLowerCase();
+          setFilteredUsers(updatedUsers.filter(user => 
+            user.name.toLowerCase().includes(query) ||
+            user.email.toLowerCase().includes(query) ||
+            user.role.toLowerCase().includes(query) ||
+            user.location.toLowerCase().includes(query)
+          ));
+        }
+        
+        // Show success message
+        toast({
+          title: "Usuario añadido",
+          description: `${userData.name} ha sido añadido exitosamente.`
+        });
+      }
+    } catch (error) {
+      console.error('Error adding user:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo añadir el usuario. Intente de nuevo.",
+        variant: "destructive"
+      });
     }
-    
-    // Increment next ID
-    setNextUserId(nextUserId + 1);
-    
-    // Show success message
-    toast({
-      title: "Usuario añadido",
-      description: `${userData.name} ha sido añadido exitosamente.`
-    });
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -298,7 +351,7 @@ const AdminUsers = () => {
         open={isAddUserDialogOpen}
         onOpenChange={setIsAddUserDialogOpen}
         onAddUser={handleAddUser}
-        locations={locations}
+        locations={locations.length > 0 ? locations : ['CDMX', 'Monterrey', 'Guadalajara', 'Culiacán']}
       />
     </Layout>
   );
