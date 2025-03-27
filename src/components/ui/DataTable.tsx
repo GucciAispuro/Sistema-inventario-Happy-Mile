@@ -8,6 +8,8 @@ import {
   TableHead, 
   TableCell 
 } from '@/components/ui/table';
+import { TableEmpty } from './DataTable/TableEmpty';
+import { TableLoading } from './DataTable/TableLoading';
 
 interface DataTableProps<T> {
   data: T[];
@@ -43,14 +45,7 @@ export function DataTable<T>({
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                <div className="flex items-center justify-center">
-                  <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
-                  Cargando...
-                </div>
-              </TableCell>
-            </TableRow>
+            <TableLoading colSpan={columns.length} />
           ) : data.length > 0 ? (
             data.map((item, rowIndex) => (
               <TableRow key={rowIndex} className="transition hover:bg-secondary/50">
@@ -64,11 +59,7 @@ export function DataTable<T>({
               </TableRow>
             ))
           ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                {emptyState}
-              </TableCell>
-            </TableRow>
+            <TableEmpty colSpan={columns.length} message={emptyState} />
           )}
         </TableBody>
       </Table>
