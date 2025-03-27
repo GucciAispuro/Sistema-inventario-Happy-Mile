@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   Table, 
   TableHeader, 
@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/table';
 import { TableEmpty } from './DataTable/TableEmpty';
 import { TableLoading } from './DataTable/TableLoading';
-import { DataTablePagination } from './DataTablePagination';
 
 interface DataTableProps<T> {
   data: T[];
@@ -23,8 +22,6 @@ interface DataTableProps<T> {
   className?: string;
   loading?: boolean;
   emptyState?: string;
-  pagination?: boolean;
-  itemsPerPage?: number;
 }
 
 export function DataTable<T>({ 
@@ -32,25 +29,8 @@ export function DataTable<T>({
   columns, 
   className = '',
   loading = false,
-  emptyState = 'No results.',
-  pagination = false,
-  itemsPerPage = 10
+  emptyState = 'No results.'
 }: DataTableProps<T>) {
-  const [paginatedData, setPaginatedData] = useState<T[]>(
-    pagination ? data.slice(0, itemsPerPage) : data
-  );
-
-  // If not using pagination, just use the data directly
-  useEffect(() => {
-    if (!pagination) {
-      setPaginatedData(data);
-    }
-  }, [data, pagination]);
-
-  const handlePageChange = (items: T[]) => {
-    setPaginatedData(items);
-  };
-
   return (
     <div className={`table-container ${className}`}>
       <Table>
@@ -67,7 +47,7 @@ export function DataTable<T>({
           {loading ? (
             <TableLoading colSpan={columns.length} />
           ) : data.length > 0 ? (
-            (pagination ? paginatedData : data).map((item, rowIndex) => (
+            data.map((item, rowIndex) => (
               <TableRow key={rowIndex} className="transition hover:bg-secondary/50">
                 {columns.map((column) => (
                   <TableCell key={`${rowIndex}-${String(column.key)}`} className={column.className}>
@@ -83,14 +63,6 @@ export function DataTable<T>({
           )}
         </TableBody>
       </Table>
-      
-      {pagination && data.length > itemsPerPage && (
-        <DataTablePagination 
-          data={data}
-          itemsPerPage={itemsPerPage}
-          onPageChange={handlePageChange}
-        />
-      )}
     </div>
   );
 }
