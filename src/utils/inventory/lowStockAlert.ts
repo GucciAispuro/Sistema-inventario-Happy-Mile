@@ -116,12 +116,12 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
     
     // For each location, check for low stock items
     for (const location of locations) {
-      // Fixed query: Compare min_stock as a numeric value, not as a string
+      // Fixed query: Using numeric comparison instead of string comparison
       const { data: items, error } = await supabase
         .from('inventory')
         .select('*')
         .eq('location', location)
-        .lt('quantity', 'min_stock')
+        .filter('quantity', 'lt', 'min_stock')
         .not('min_stock', 'is', null);
       
       if (error) {
