@@ -18,9 +18,17 @@ interface DataTableProps<T> {
     className?: string;
   }[];
   className?: string;
+  loading?: boolean;
+  emptyState?: string;
 }
 
-export function DataTable<T>({ data, columns, className = '' }: DataTableProps<T>) {
+export function DataTable<T>({ 
+  data, 
+  columns, 
+  className = '',
+  loading = false,
+  emptyState = 'No results.'
+}: DataTableProps<T>) {
   return (
     <div className={`table-container ${className}`}>
       <Table>
@@ -34,7 +42,16 @@ export function DataTable<T>({ data, columns, className = '' }: DataTableProps<T
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.length > 0 ? (
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                <div className="flex items-center justify-center">
+                  <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                  Cargando...
+                </div>
+              </TableCell>
+            </TableRow>
+          ) : data.length > 0 ? (
             data.map((item, rowIndex) => (
               <TableRow key={rowIndex} className="transition hover:bg-secondary/50">
                 {columns.map((column) => (
@@ -49,7 +66,7 @@ export function DataTable<T>({ data, columns, className = '' }: DataTableProps<T
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
+                {emptyState}
               </TableCell>
             </TableRow>
           )}
