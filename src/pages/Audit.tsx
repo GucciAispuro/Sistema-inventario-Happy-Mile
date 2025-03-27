@@ -62,16 +62,14 @@ const Audit = () => {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        // Using a more type-safe approach with explicit casting
-        const { data, error } = await supabase
+        const { data: locationData, error: locationError } = await supabase
           .from('locations')
           .select('*');
         
-        if (error) throw error;
+        if (locationError) throw locationError;
         
-        // Safely handling potential null data
-        if (data) {
-          setLocations(data.map((location: any) => location.name));
+        if (locationData) {
+          setLocations(locationData.map((location: Location) => location.name));
         }
       } catch (error) {
         console.error('Error fetching locations:', error);
@@ -108,22 +106,21 @@ const Audit = () => {
     setSelectedLocation(location);
     
     try {
-      // Using a more type-safe approach with explicit casting
-      const { data, error } = await supabase
+      const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
         .select('*')
         .eq('location', location);
       
-      if (error) throw error;
+      if (inventoryError) throw inventoryError;
       
-      if (data) {
-        const itemsWithActual = data.map((item: any) => ({
+      if (inventoryData) {
+        const itemsWithActual = inventoryData.map((item: InventoryItem) => ({
           ...item,
           actual_quantity: item.quantity,
           difference: 0
         }));
         
-        setInventoryItems(itemsWithActual as InventoryItem[]);
+        setInventoryItems(itemsWithActual);
         setIsAuditDialogOpen(true);
       }
     } catch (error) {
