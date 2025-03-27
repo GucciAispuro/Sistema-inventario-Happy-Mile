@@ -16,6 +16,18 @@ export const ensureTables = async () => {
       console.error('Error checking users table:', error);
     } else {
       console.log('Users table exists and is accessible');
+      
+      // Check for users with receive_alerts = true
+      const { data: adminUsers, error: adminError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('receive_alerts', true);
+      
+      if (adminError) {
+        console.error('Error checking for admin users:', adminError);
+      } else {
+        console.log(`Found ${adminUsers?.length || 0} users with alerts enabled`);
+      }
     }
   } catch (error) {
     console.error('Error ensuring tables exist:', error);
