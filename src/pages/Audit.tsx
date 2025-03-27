@@ -23,26 +23,56 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable } from '@/components/ui/DataTable';
 
+// Define types for our data
+interface Location {
+  id: string;
+  name: string;
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  location: string;
+  actual_quantity?: number;
+  difference?: number;
+}
+
+interface Audit {
+  id: string;
+  location: string;
+  date: string;
+  items_count: number;
+  discrepancies: number;
+  user_name: string;
+  created_at: string;
+}
+
 const Audit = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [locations, setLocations] = useState<string[]>([]);
   const [selectedLocation, setSelectedLocation] = useState('');
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [auditItems, setAuditItems] = useState<any[]>([]);
   const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
-  const [previousAudits, setPreviousAudits] = useState<any[]>([]);
+  const [previousAudits, setPreviousAudits] = useState<Audit[]>([]);
 
   useEffect(() => {
     const fetchLocations = async () => {
       try {
+        // Using a more type-safe approach with explicit casting
         const { data, error } = await supabase
           .from('locations')
-          .select('name');
+          .select('*');
         
         if (error) throw error;
         
-        setLocations(data.map(location => location.name));
+        // Safely handling potential null data
+        if (data) {
+          setLocations(data.map((location: any) => location.name));
+        }
       } catch (error) {
         console.error('Error fetching locations:', error);
         toast({
@@ -62,7 +92,9 @@ const Audit = () => {
         
         if (error) throw error;
         
-        setPreviousAudits(data);
+        if (data) {
+          setPreviousAudits(data as Audit[]);
+        }
       } catch (error) {
         console.error('Error fetching previous audits:', error);
       }
@@ -76,6 +108,7 @@ const Audit = () => {
     setSelectedLocation(location);
     
     try {
+      // Using a more type-safe approach with explicit casting
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
@@ -83,13 +116,16 @@ const Audit = () => {
       
       if (error) throw error;
       
-      const itemsWithActual = data.map(item => ({
-        ...item,
-        actual_quantity: item.quantity
-      }));
-      
-      setInventoryItems(itemsWithActual);
-      setIsAuditDialogOpen(true);
+      if (data) {
+        const itemsWithActual = data.map((item: any) => ({
+          ...item,
+          actual_quantity: item.quantity,
+          difference: 0
+        }));
+        
+        setInventoryItems(itemsWithActual as InventoryItem[]);
+        setIsAuditDialogOpen(true);
+      }
     } catch (error) {
       console.error('Error fetching inventory items:', error);
       toast({
@@ -100,7 +136,7 @@ const Audit = () => {
     }
   };
 
-  const handleActualQuantityChange = (itemId: number, actualQuantity: number) => {
+  const handleActualQuantityChange = (itemId: string, actualQuantity: number) => {
     const updatedItems = inventoryItems.map(item => 
       item.id === itemId 
         ? { 
@@ -136,8 +172,8 @@ const Audit = () => {
         category: item.category,
         location: selectedLocation,
         system_quantity: item.quantity,
-        actual_quantity: item.actual_quantity,
-        difference: item.difference
+        actual_quantity: item.actual_quantity || 0,
+        difference: item.difference || 0
       }));
 
       const { error: auditItemsError } = await supabase
@@ -153,6 +189,17 @@ const Audit = () => {
 
       setIsAuditDialogOpen(false);
       setSelectedLocation('');
+      
+      // Refresh the audit list
+      const { data: freshAudits, error: refreshError } = await supabase
+        .from('audits')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!refreshError && freshAudits) {
+        setPreviousAudits(freshAudits as Audit[]);
+      }
+      
     } catch (error) {
       console.error('Error saving audit:', error);
       toast({
