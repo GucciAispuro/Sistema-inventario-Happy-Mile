@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -29,23 +30,25 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/colaborador" element={<TransaccionesColaborador />} />
-          <Route path="/audit" element={<Audit />} />
-          <Route path="/admin/items" element={<AdminItems />} />
-          <Route path="/admin/locations" element={<AdminLocations />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/colaborador" element={<TransaccionesColaborador />} />
+            <Route path="/audit" element={<Audit />} />
+            <Route path="/admin/items" element={<AdminItems />} />
+            <Route path="/admin/locations" element={<AdminLocations />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

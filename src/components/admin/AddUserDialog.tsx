@@ -47,7 +47,7 @@ const AddUserDialog = ({
   const [receiveAlerts, setReceiveAlerts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim() || !email.trim()) {
@@ -73,6 +73,27 @@ const AddUserDialog = ({
     setIsSubmitting(true);
     
     try {
+      // Generate a random password for the new user
+      const tempPassword = Math.random().toString(36).slice(-8);
+      
+      // Create the user in Supabase Auth
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          name: name,
+          role: role,
+          location: location,
+          receiveAlerts: receiveAlerts
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Call the parent's onAddUser function with the user data
       onAddUser({
         name,
         email,
@@ -90,13 +111,30 @@ const AddUserDialog = ({
       
       // Close dialog
       onOpenChange(false);
+      
+      // Show success message with password
+      toast({
+        title: "Usuario creado exitosamente",
+        description: `Se ha enviado un correo a ${email} para confirmar la cuenta.`,
+      });
+      
     } catch (error) {
       console.error("Error adding user:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el usuario. Intente de nuevo.",
-        variant: "destructive"
-      });
+      
+      // Check if it's a "User already registered" error
+      if (error.message && error.message.includes("already registered")) {
+        toast({
+          title: "Error",
+          description: "Este correo electrónico ya está registrado.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo agregar el usuario. Intente de nuevo.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

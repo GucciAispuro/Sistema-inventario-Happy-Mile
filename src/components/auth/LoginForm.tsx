@@ -1,97 +1,123 @@
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import MotionContainer from '../ui/MotionContainer';
-import { BoxesIcon } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Lock, Mail, User } from 'lucide-react';
 
-const LoginForm = () => {
+interface LoginFormProps {
+  onSubmit: (email: string, password: string, isLogin: boolean) => void;
+  isSubmitting?: boolean;
+}
+
+const LoginForm = ({ onSubmit, isSubmitting = false }: LoginFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>('login');
   
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Auto-login without validation
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('isAuthenticated', 'true');
-      
-      toast({
-        title: "Éxito",
-        description: "Has iniciado sesión correctamente",
-      });
-      
-      navigate('/dashboard');
-    }, 500);
+    onSubmit(email, password, activeTab === 'login');
   };
   
   return (
-    <div className="w-full max-w-md">
-      <MotionContainer className="mb-8 text-center">
-        <div className="mx-auto h-16 w-auto mb-4">
-          <img 
-            src="/lovable-uploads/5399f4ec-e1d9-4ad7-bd49-730fd7167990.png" 
-            alt="Happy Mile Logo" 
-            className="h-full w-auto object-contain"
-          />
-        </div>
-        <h1 className="text-2xl font-semibold">Sistema de Inventario</h1>
-        <p className="text-muted-foreground mt-2">
-          Inicio de sesión desactivado para pruebas - haga clic en Iniciar Sesión para continuar
+    <div className="space-y-4">
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Sistema de Inventario</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Accede a tu cuenta para continuar
         </p>
-      </MotionContainer>
+      </div>
       
-      <MotionContainer delay={100}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="admin@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="subtle-input"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Contraseña</Label>
-              <Button type="button" variant="link" className="p-0 h-auto text-xs">
-                ¿Olvidó su contraseña?
-              </Button>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-2 w-full">
+          <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
+          <TabsTrigger value="signup">Registrarme</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="login" className="mt-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo Electrónico</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="correo@ejemplo.com"
+                  className="pl-9"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="subtle-input"
-            />
-          </div>
-          
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Iniciando sesión..." : "Iniciar Sesión (Automático)"}
-          </Button>
-          
-          <div className="text-center text-sm text-muted-foreground">
-            <p>El inicio de sesión está desactivado para pruebas - se iniciará como Administrador</p>
-          </div>
-        </form>
-      </MotionContainer>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  className="pl-9"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <Button type="submit" className="w-full mt-4" disabled={isSubmitting}>
+              {isSubmitting ? 'Procesando...' : 'Iniciar Sesión'}
+            </Button>
+          </form>
+        </TabsContent>
+        
+        <TabsContent value="signup" className="mt-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="signup-email">Correo Electrónico</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="signup-email"
+                  type="email"
+                  placeholder="correo@ejemplo.com"
+                  className="pl-9"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="signup-password">Contraseña</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="signup-password"
+                  type="password"
+                  className="pl-9"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <Button type="submit" className="w-full mt-4" disabled={isSubmitting}>
+              {isSubmitting ? 'Procesando...' : 'Registrarme'}
+            </Button>
+          </form>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
