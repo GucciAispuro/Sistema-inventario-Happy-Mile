@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -61,10 +60,9 @@ const Inventory = () => {
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Ensure these arrays are never undefined by providing default empty arrays
-  const locations = Array.from(new Set((inventoryItems || []).map(item => item.location)));
-  const categories = Array.from(new Set((inventoryItems || []).map(item => item.category)));
-  const statuses = Array.from(new Set((inventoryItems || []).map(item => item.status || '')).filter(Boolean));
+  const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
+  const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
+  const statuses = Array.from(new Set(inventoryItems.map(item => item.status || ''))).filter(Boolean);
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -78,7 +76,6 @@ const Inventory = () => {
 
     fetchInventoryData();
     
-    // Setup real-time subscription for inventory changes
     const channel = supabase
       .channel('inventory-changes')
       .on(
@@ -105,33 +102,20 @@ const Inventory = () => {
       }
       
       if (data) {
-        // Transform the data to match our UI expectations
-        const formattedData = data.map(item => {
-          // Default values for min_stock and cost
-          const minStock = item.min_stock || 5;
-          const cost = item.cost || 0;
-          
-          // Calculate status based on quantity and min_stock
-          const status = 
+        const formattedData: InventoryItem[] = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          location: item.location,
+          quantity: item.quantity,
+          min_stock: item.min_stock || 5,
+          cost: item.cost || 0,
+          status: 
             item.quantity === 0 ? 'Agotado' :
-            item.quantity < minStock / 2 ? 'Crítico' :
-            item.quantity < minStock ? 'Bajo' : 'Normal';
-          
-          // Calculate total value
-          const totalValue = cost * item.quantity;
-          
-          return {
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            location: item.location,
-            quantity: item.quantity,
-            min_stock: minStock,
-            cost: cost,
-            status: status,
-            total_value: totalValue
-          };
-        });
+            (item.min_stock ? item.quantity < item.min_stock / 2 ? 'Crítico' :
+            item.quantity < item.min_stock ? 'Bajo' : 'Normal') : 'Normal',
+          total_value: (item.cost || 0) * item.quantity
+        }));
         
         setInventoryItems(formattedData);
         setFilteredItems(formattedData);
@@ -149,7 +133,6 @@ const Inventory = () => {
   };
   
   useEffect(() => {
-    // Early return if inventoryItems is undefined
     if (!inventoryItems) return;
     
     let filtered = [...inventoryItems];
@@ -183,7 +166,6 @@ const Inventory = () => {
 
   const handleAddItem = async (newItem) => {
     try {
-      // Prepare the item for Supabase (remove UI-specific fields)
       const { 
         status, 
         total_value, 
@@ -191,7 +173,6 @@ const Inventory = () => {
         ...itemForDb 
       } = newItem;
       
-      // Insert the new item into Supabase
       const { data, error } = await supabase
         .from('inventory')
         .insert([itemForDb])
@@ -200,8 +181,6 @@ const Inventory = () => {
       if (error) {
         throw error;
       }
-      
-      // We don't need to manually update the state as the subscription will trigger fetchInventoryData
       
       toast({
         title: "Artículo añadido",
@@ -218,7 +197,6 @@ const Inventory = () => {
   };
 
   const handleExport = () => {
-    // Ensure filteredItems exists before exporting
     if (!filteredItems || filteredItems.length === 0) {
       toast({
         title: "Error al exportar",
@@ -377,7 +355,7 @@ const Inventory = () => {
               { 
                 key: 'location', 
                 header: 'Ubicación',
-                cell: (item) => (
+                cell: (item: InventoryItem) => (
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-1 text-primary" />
                     {item.location}

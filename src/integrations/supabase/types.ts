@@ -86,25 +86,31 @@ export type Database = {
       inventory: {
         Row: {
           category: string
+          cost: number | null
           created_at: string | null
           id: string
           location: string
+          min_stock: number | null
           name: string
           quantity: number
         }
         Insert: {
           category: string
+          cost?: number | null
           created_at?: string | null
           id?: string
           location: string
+          min_stock?: number | null
           name: string
           quantity?: number
         }
         Update: {
           category?: string
+          cost?: number | null
           created_at?: string | null
           id?: string
           location?: string
+          min_stock?: number | null
           name?: string
           quantity?: number
         }
