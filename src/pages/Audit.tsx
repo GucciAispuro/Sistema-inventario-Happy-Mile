@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
@@ -92,7 +91,7 @@ const Audit = () => {
         // This is a simulation with hardcoded data
         return [
           { 
-            id: '1', 
+            id: crypto.randomUUID(), // Generate proper UUIDs instead of numeric strings
             name: 'Silla de Oficina', 
             category: 'Mobiliario',
             location: selectedLocation,
@@ -100,7 +99,7 @@ const Audit = () => {
             last_audit: '2023-05-15'
           },
           { 
-            id: '2', 
+            id: crypto.randomUUID(),
             name: 'Papel para Impresora', 
             category: 'Material de Oficina',
             location: selectedLocation,
@@ -108,7 +107,7 @@ const Audit = () => {
             last_audit: '2023-05-10'
           },
           { 
-            id: '3', 
+            id: crypto.randomUUID(),
             name: 'Laptop', 
             category: 'Electrónicos',
             location: selectedLocation,
@@ -116,7 +115,7 @@ const Audit = () => {
             last_audit: '2023-06-01'
           },
           { 
-            id: '4', 
+            id: crypto.randomUUID(),
             name: 'Kit de Primeros Auxilios', 
             category: 'Equipo de Seguridad',
             location: selectedLocation,
@@ -166,7 +165,7 @@ const Audit = () => {
   useEffect(() => {
     if (inventoryItems.length > 0) {
       const items: AuditItem[] = inventoryItems.map(item => ({
-        id: item.id,
+        id: item.id, // Now using proper UUIDs
         name: item.name,
         category: item.category,
         system_quantity: item.quantity,
@@ -242,10 +241,10 @@ const Audit = () => {
         throw new Error(`Error al guardar la auditoría: ${auditError.message}`);
       }
 
-      // Insert audit items with correct properties
+      // Insert audit items with correct properties - make sure IDs are proper UUIDs
       const auditItemsData = auditItems.map(item => ({
         audit_id: auditRecord.id,
-        id: item.id,
+        id: crypto.randomUUID(), // Generate new UUIDs for audit_items entries
         name: item.name,
         category: item.category,
         location: selectedLocation,
