@@ -105,7 +105,9 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
         .from('inventory')
         .select('*')
         .eq('location', location)
-        .lt('quantity', supabase.raw('min_stock'));
+        // Fix: don't use .raw which is not supported in the type definition
+        // Instead, use a direct comparison in the query
+        .lt('quantity', 'min_stock');
       
       if (error) {
         console.error(`Error al verificar stock bajo en ${location}:`, error);
