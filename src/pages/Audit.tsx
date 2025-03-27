@@ -14,9 +14,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
 import { DataTable } from '@/components/ui/DataTable';
-import { Calendar } from 'lucide-react';
+import { Calendar, Plus, Minus, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AuditDetail, { AuditDetail as AuditDetailType, AuditItem } from '@/components/audit/AuditDetail';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Type definitions
 type AuditHistory = {
@@ -38,43 +44,94 @@ type SavedAudit = {
   items: AuditItem[];
 };
 
+type Location = {
+  id: string;
+  name: string;
+};
+
+type InventoryItem = {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  quantity: number;
+};
+
 const Audit = () => {
-  const [location, setLocation] = useState('');
-  const [user, setUser] = useState('');
+  const [user, setUser] = useState('Admin User'); // Default user
   const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState<AuditDetailType | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [isAuditItemsDialogOpen, setIsAuditItemsDialogOpen] = useState(false);
   
-  // Define auditItems before using it
-  const [auditItems, setAuditItems] = useState<AuditItem[]>([
-    { 
-      id: '1', 
-      name: 'Laptop HP', 
-      category: 'Electrónicos',
-      location: 'Almacén Principal',
-      system_quantity: 10, 
-      actual_quantity: 8, 
-      difference: -2 
-    },
-    { 
-      id: '2', 
-      name: 'Monitor Dell', 
-      category: 'Electrónicos',
-      location: 'Almacén Principal',
-      system_quantity: 15, 
-      actual_quantity: 15, 
-      difference: 0 
-    },
-    { 
-      id: '3', 
-      name: 'Teclado Mecánico', 
-      category: 'Periféricos',
-      location: 'Almacén Principal',
-      system_quantity: 20, 
-      actual_quantity: 22, 
-      difference: 2 
+  // Define auditItems here, before it's used
+  const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
+
+  // Fetch locations
+  const { 
+    data: locations = [], 
+    isLoading: isLoadingLocations 
+  } = useQuery<Location[]>({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      try {
+        // Simulating a fetch of locations - in a real app, this would come from the database
+        return [
+          { id: '1', name: 'Almacén Principal' },
+          { id: '2', name: 'Almacén Secundario' },
+          { id: '3', name: 'Oficina Central' }
+        ];
+      } catch (err) {
+        console.error('Error fetching locations:', err);
+        return [];
+      }
     }
-  ]);
+  });
+
+  // Fetch inventory items for the selected location
+  const { 
+    data: inventoryItems = [],
+    isLoading: isLoadingInventory,
+    refetch: refetchInventoryItems
+  } = useQuery<InventoryItem[]>({
+    queryKey: ['inventory-items', selectedLocation],
+    queryFn: async () => {
+      if (!selectedLocation) return [];
+      
+      try {
+        // In a real app, fetch items from the database based on location
+        // This is a simulation with hardcoded data
+        return [
+          { 
+            id: '1', 
+            name: 'Laptop HP', 
+            category: 'Electrónicos',
+            location: selectedLocation,
+            quantity: 10
+          },
+          { 
+            id: '2', 
+            name: 'Monitor Dell', 
+            category: 'Electrónicos',
+            location: selectedLocation,
+            quantity: 15
+          },
+          { 
+            id: '3', 
+            name: 'Teclado Mecánico', 
+            category: 'Periféricos',
+            location: selectedLocation,
+            quantity: 20
+          }
+        ];
+      } catch (err) {
+        console.error('Error fetching inventory items:', err);
+        return [];
+      }
+    },
+    enabled: !!selectedLocation
+  });
 
   // Fetch audit history
   const { 
@@ -107,6 +164,39 @@ const Audit = () => {
     }
   });
 
+  const handleLocationSelect = (location: string) => {
+    setSelectedLocation(location);
+    
+    // Generate audit items based on inventory
+    const items: AuditItem[] = inventoryItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      location: item.location,
+      system_quantity: item.quantity,
+      actual_quantity: item.quantity, // Default to system quantity initially
+      difference: 0 // Initially no difference
+    }));
+    
+    setAuditItems(items);
+    setIsAuditItemsDialogOpen(true);
+  };
+
+  // Update actual quantity for an item
+  const handleQuantityChange = (id: string, newQuantity: number) => {
+    setAuditItems(prev => prev.map(item => {
+      if (item.id === id) {
+        const actual = Math.max(0, newQuantity); // Prevent negative quantities
+        return {
+          ...item,
+          actual_quantity: actual,
+          difference: actual - item.system_quantity
+        };
+      }
+      return item;
+    }));
+  };
+
   // Get discrepancy count
   const getDiscrepancyCount = () => {
     return auditItems.filter(item => item.difference !== 0).length;
@@ -115,10 +205,10 @@ const Audit = () => {
   // Handle form submission
   const handleSaveAudit = async () => {
     try {
-      if (!location || !user) {
+      if (!selectedLocation) {
         toast({
-          title: 'Información Incompleta',
-          description: 'Por favor completa todos los campos requeridos.',
+          title: 'Ubicación no seleccionada',
+          description: 'Por favor selecciona una ubicación para la auditoría.',
           variant: 'destructive'
         });
         return;
@@ -129,7 +219,7 @@ const Audit = () => {
 
       // Audit data to save
       const auditData: SavedAudit = {
-        location,
+        location: selectedLocation,
         date: new Date().toISOString().split('T')[0],
         user_name: user,
         items_count: itemsWithDiscrepancies,
@@ -154,10 +244,10 @@ const Audit = () => {
         throw new Error(`Error al guardar la auditoría: ${auditError.message}`);
       }
 
-      // Insert audit items - Make sure to include the id property
+      // Insert audit items with correct properties
       const auditItemsData = auditData.items.map(item => ({
         audit_id: auditRecord.id,
-        id: item.id, // Include the id property
+        id: item.id,
         name: item.name,
         category: item.category,
         location: item.location,
@@ -181,9 +271,8 @@ const Audit = () => {
       });
 
       // Reset form and close dialog
-      setLocation('');
-      setUser('');
-      setIsAuditDialogOpen(false);
+      setSelectedLocation('');
+      setIsAuditItemsDialogOpen(false);
 
       // Refresh audit history
       refetchAuditHistory();
@@ -221,9 +310,9 @@ const Audit = () => {
         throw new Error(`Error al cargar los elementos de la auditoría: ${itemsError.message}`);
       }
 
-      // Transform itemsData to match AuditItem interface if needed
+      // Transform itemsData to match AuditItem interface
       const transformedItems: AuditItem[] = (itemsData || []).map(item => ({
-        id: item.id || item.audit_id, // Ensure there's an id
+        id: item.id,
         name: item.name,
         category: item.category,
         location: item.location,
@@ -255,7 +344,24 @@ const Audit = () => {
         <MotionContainer>
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Auditoría de Inventario</h1>
-            <Button onClick={() => setIsAuditDialogOpen(true)}>Nueva Auditoría</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="w-40">
+                  Nueva Auditoría
+                  <ChevronsUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {locations.map((location) => (
+                  <DropdownMenuItem 
+                    key={location.id}
+                    onClick={() => handleLocationSelect(location.name)}
+                  >
+                    {location.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </MotionContainer>
         
@@ -315,35 +421,100 @@ const Audit = () => {
         </MotionContainer>
       </div>
       
-      {/* Nueva Auditoría Dialog */}
-      <Dialog open={isAuditDialogOpen} onOpenChange={setIsAuditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+      {/* Audit Items Dialog */}
+      <Dialog open={isAuditItemsDialogOpen} onOpenChange={setIsAuditItemsDialogOpen}>
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Nueva Auditoría</DialogTitle>
+            <DialogTitle>Auditoría: {selectedLocation}</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Ubicación</label>
-              <Input 
-                placeholder="Ingrese la ubicación" 
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                <span className="text-sm text-muted-foreground">Ubicación</span>
+                <span className="text-lg font-medium">{selectedLocation}</span>
+              </div>
+              <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                <span className="text-sm text-muted-foreground">Artículos</span>
+                <span className="text-lg font-medium">{auditItems.length}</span>
+              </div>
+              <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                <span className="text-sm text-muted-foreground">Discrepancias</span>
+                <span className={`text-lg font-medium ${getDiscrepancyCount() > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                  {getDiscrepancyCount()}
+                </span>
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Usuario</label>
-              <Input 
-                placeholder="Nombre del usuario" 
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
-              />
-            </div>
+            <table className="w-full border-collapse mt-4">
+              <thead>
+                <tr className="bg-muted">
+                  <th className="text-left p-2">Artículo</th>
+                  <th className="text-left p-2">Categoría</th>
+                  <th className="text-left p-2">Sistema</th>
+                  <th className="text-left p-2">Real</th>
+                  <th className="text-left p-2">Diferencia</th>
+                  <th className="text-left p-2">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditItems.map((item) => (
+                  <tr key={item.id} className="border-b">
+                    <td className="p-2">{item.name}</td>
+                    <td className="p-2">{item.category}</td>
+                    <td className="p-2 font-medium">{item.system_quantity}</td>
+                    <td className="p-2 font-medium">{item.actual_quantity}</td>
+                    <td className="p-2">
+                      <div className="flex items-center">
+                        {item.difference > 0 && <Plus className="h-3 w-3 text-destructive mr-1" />}
+                        {item.difference < 0 && <Minus className="h-3 w-3 text-blue-600 mr-1" />}
+                        <span 
+                          className={
+                            item.difference > 0 
+                              ? 'text-destructive font-medium' 
+                              : item.difference < 0 
+                                ? 'text-blue-600 font-medium' 
+                                : 'text-green-600 font-medium'
+                          }
+                        >
+                          {item.difference > 0 ? `+${item.difference}` : item.difference}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <div className="flex items-center space-x-1">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => handleQuantityChange(item.id, item.actual_quantity - 1)}
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Input
+                          type="number"
+                          value={item.actual_quantity}
+                          onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                          className="w-16 h-7 text-center"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => handleQuantityChange(item.id, item.actual_quantity + 1)}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAuditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsAuditItemsDialogOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={handleSaveAudit}>
