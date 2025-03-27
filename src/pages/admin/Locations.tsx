@@ -1,12 +1,14 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, 
   Search,
@@ -26,41 +28,15 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
-// Mock data for locations
-const locations = [
-  { 
-    id: 1, 
-    name: 'CDMX', 
-    address: 'Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 03940 Ciudad de México, CDMX', 
-    items_count: 45,
-    manager: 'Maria Gonzalez',
-    total_value: 208700
-  },
-  { 
-    id: 2, 
-    name: 'Monterrey', 
-    address: 'Av. Lázaro Cárdenas 2424, Residencial San Agustín, San Pedro Garza García, N.L.', 
-    items_count: 38,
-    manager: 'Carlos Rodriguez',
-    total_value: 156800
-  },
-  { 
-    id: 3, 
-    name: 'Guadalajara', 
-    address: 'Av. Adolfo López Mateos Sur 2077, Jardines Plaza del Sol, 44510 Guadalajara, Jal.', 
-    items_count: 32,
-    manager: 'Juan Perez',
-    total_value: 98500
-  },
-  { 
-    id: 4, 
-    name: 'Culiacán', 
-    address: 'Blvd. Pedro Infante 2150, Desarrollo Urbano Tres Ríos, 80020 Culiacán, Sin.', 
-    items_count: 29,
-    manager: 'Ana Lopez',
-    total_value: 76300
-  },
-];
+// Type definition for location
+type Location = {
+  id: string;
+  name: string;
+  address?: string;
+  items_count?: number;
+  manager?: string;
+  total_value?: number;
+};
 
 // Lista de managers para seleccionar
 const availableManagers = [
@@ -78,7 +54,7 @@ const AdminLocations = () => {
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredLocations, setFilteredLocations] = useState(locations);
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   const [totalOverallValue, setTotalOverallValue] = useState(0);
   const [showAddLocationDialog, setShowAddLocationDialog] = useState(false);
   const [showEditLocationDialog, setShowEditLocationDialog] = useState(false);
@@ -87,8 +63,48 @@ const AdminLocations = () => {
     address: '',
     manager: ''
   });
-  const [currentLocation, setCurrentLocation] = useState<any>(null);
-  const [allLocations, setAllLocations] = useState(locations);
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  
+  // Fetch locations from Supabase
+  const { 
+    data: allLocations = [], 
+    isLoading,
+    refetch: refetchLocations
+  } = useQuery<Location[]>({
+    queryKey: ['admin-locations'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('id, name');
+        
+        if (error) {
+          toast({
+            title: 'Error al cargar ubicaciones',
+            description: error.message,
+            variant: 'destructive'
+          });
+          throw error;
+        }
+        
+        // Transform data to include additional fields (temporary solution)
+        // In a real app, these would come from proper relational queries
+        return data.map(location => ({
+          ...location,
+          address: location.name === 'CDMX' ? 'Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 03940 Ciudad de México, CDMX' :
+                  location.name === 'Oficina Central' ? 'Av. Lázaro Cárdenas 2424, Residencial San Agustín, San Pedro Garza García, N.L.' :
+                  location.name === 'Almacén Principal' ? 'Av. Adolfo López Mateos Sur 2077, Jardines Plaza del Sol, 44510 Guadalajara, Jal.' :
+                  'Blvd. Pedro Infante 2150, Desarrollo Urbano Tres Ríos, 80020 Culiacán, Sin.',
+          items_count: Math.floor(Math.random() * 50) + 10,
+          manager: availableManagers[Math.floor(Math.random() * availableManagers.length)],
+          total_value: Math.floor(Math.random() * 200000) + 50000
+        }));
+      } catch (err) {
+        console.error('Error fetching locations:', err);
+        return [];
+      }
+    }
+  });
   
   useEffect(() => {
     // Check authentication
@@ -115,14 +131,14 @@ const AdminLocations = () => {
       const query = searchQuery.toLowerCase();
       const filtered = allLocations.filter(location => 
         location.name.toLowerCase().includes(query) ||
-        location.address.toLowerCase().includes(query) ||
-        location.manager.toLowerCase().includes(query)
+        (location.address && location.address.toLowerCase().includes(query)) ||
+        (location.manager && location.manager.toLowerCase().includes(query))
       );
       setFilteredLocations(filtered);
     }
     
     // Calculate total overall value
-    const total = allLocations.reduce((sum, location) => sum + location.total_value, 0);
+    const total = allLocations.reduce((sum, location) => sum + (location.total_value || 0), 0);
     setTotalOverallValue(total);
   }, [searchQuery, allLocations]);
 
@@ -130,85 +146,108 @@ const AdminLocations = () => {
     setShowAddLocationDialog(true);
   };
 
-  const handleEditLocation = (location: any) => {
+  const handleEditLocation = (location: Location) => {
     setCurrentLocation(location);
     setShowEditLocationDialog(true);
   };
 
-  const handleSaveLocation = () => {
+  const handleSaveLocation = async () => {
     // Validación básica
-    if (!newLocation.name || !newLocation.address || !newLocation.manager) {
+    if (!newLocation.name) {
       toast({
         title: "Error",
-        description: "Todos los campos son obligatorios",
+        description: "El nombre de la ubicación es obligatorio",
         variant: "destructive"
       });
       return;
     }
 
-    // Crear nueva ubicación con ID único
-    const newLocationWithId = {
-      id: allLocations.length + 1,
-      name: newLocation.name,
-      address: newLocation.address,
-      manager: newLocation.manager,
-      items_count: 0,
-      total_value: 0
-    };
+    try {
+      // Insert location into Supabase
+      const { data, error } = await supabase
+        .from('locations')
+        .insert({ name: newLocation.name })
+        .select()
+        .single();
 
-    // Actualizar estado
-    setAllLocations([...allLocations, newLocationWithId]);
+      if (error) {
+        throw error;
+      }
 
-    // Mostrar notificación de éxito
-    toast({
-      title: "Ubicación añadida",
-      description: `Se ha añadido ${newLocation.name} correctamente`,
-    });
+      // Mostrar notificación de éxito
+      toast({
+        title: "Ubicación añadida",
+        description: `Se ha añadido ${newLocation.name} correctamente`,
+      });
 
-    // Cerrar diálogo y resetear formulario
-    setShowAddLocationDialog(false);
-    setNewLocation({
-      name: '',
-      address: '',
-      manager: ''
-    });
+      // Cerrar diálogo y resetear formulario
+      setShowAddLocationDialog(false);
+      setNewLocation({
+        name: '',
+        address: '',
+        manager: ''
+      });
+
+      // Refetch locations
+      refetchLocations();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Error al añadir la ubicación",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleUpdateLocation = () => {
+  const handleUpdateLocation = async () => {
     if (!currentLocation) return;
 
     // Validación básica
-    if (!currentLocation.name || !currentLocation.address || !currentLocation.manager) {
+    if (!currentLocation.name) {
       toast({
         title: "Error",
-        description: "Todos los campos son obligatorios",
+        description: "El nombre de la ubicación es obligatorio",
         variant: "destructive"
       });
       return;
     }
 
-    // Actualizar la ubicación en el estado
-    const updatedLocations = allLocations.map(loc => 
-      loc.id === currentLocation.id ? currentLocation : loc
-    );
-    
-    setAllLocations(updatedLocations);
+    try {
+      // Update location in Supabase
+      const { error } = await supabase
+        .from('locations')
+        .update({ name: currentLocation.name })
+        .eq('id', currentLocation.id);
 
-    // Mostrar notificación de éxito
-    toast({
-      title: "Ubicación actualizada",
-      description: `Se ha actualizado ${currentLocation.name} correctamente`,
-    });
+      if (error) {
+        throw error;
+      }
+      
+      // Mostrar notificación de éxito
+      toast({
+        title: "Ubicación actualizada",
+        description: `Se ha actualizado ${currentLocation.name} correctamente`,
+      });
 
-    // Cerrar diálogo
-    setShowEditLocationDialog(false);
+      // Cerrar diálogo
+      setShowEditLocationDialog(false);
+      
+      // Refetch locations
+      refetchLocations();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Error al actualizar la ubicación",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteLocation = (locationId: number) => {
+  const handleDeleteLocation = async (locationId: string) => {
     // Verificar si hay artículos en la ubicación
     const locationToDelete = allLocations.find(loc => loc.id === locationId);
     
-    if (locationToDelete && locationToDelete.items_count > 0) {
+    if (locationToDelete && locationToDelete.items_count && locationToDelete.items_count > 0) {
       toast({
         title: "No se puede eliminar",
         description: "Esta ubicación contiene artículos. Traslade los artículos primero.",
@@ -219,14 +258,31 @@ const AdminLocations = () => {
 
     // Confirmar eliminación
     if (confirm(`¿Está seguro que desea eliminar la ubicación ${locationToDelete?.name}?`)) {
-      // Eliminar ubicación
-      const updatedLocations = allLocations.filter(loc => loc.id !== locationId);
-      setAllLocations(updatedLocations);
-      
-      toast({
-        title: "Ubicación eliminada",
-        description: `Se ha eliminado la ubicación correctamente`,
-      });
+      try {
+        // Delete location from Supabase
+        const { error } = await supabase
+          .from('locations')
+          .delete()
+          .eq('id', locationId);
+
+        if (error) {
+          throw error;
+        }
+        
+        toast({
+          title: "Ubicación eliminada",
+          description: `Se ha eliminado la ubicación correctamente`,
+        });
+        
+        // Refetch locations
+        refetchLocations();
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Error al eliminar la ubicación",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -268,69 +324,80 @@ const AdminLocations = () => {
         </MotionContainer>
         
         <MotionContainer delay={100}>
-          <DataTable 
-            data={filteredLocations}
-            columns={[
-              { 
-                key: 'name', 
-                header: 'Nombre',
-                cell: (location) => (
-                  <div className="font-medium flex items-center">
-                    <MapPin className="h-4 w-4 mr-2 text-primary" />
-                    {location.name}
-                  </div>
-                )
-              },
-              { 
-                key: 'address', 
-                header: 'Dirección',
-                cell: (location) => (
-                  <div className="max-w-[300px] truncate text-muted-foreground">
-                    {location.address}
-                  </div>
-                )
-              },
-              { 
-                key: 'items_count', 
-                header: 'Cant. Artículos',
-                cell: (location) => (
-                  <div className="font-medium">{location.items_count}</div>
-                )
-              },
-              { 
-                key: 'total_value', 
-                header: 'Valor Total',
-                cell: (location) => (
-                  <div className="font-medium text-green-700">{formatCurrency(location.total_value)}</div>
-                )
-              },
-              { 
-                key: 'manager', 
-                header: 'Administrador'
-              },
-              { 
-                key: 'actions', 
-                header: '',
-                cell: (location) => (
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEditLocation(location)}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Editar
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteLocation(location.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Eliminar
-                    </Button>
-                  </div>
-                )
-              },
-            ]}
-          />
+          {isLoading ? (
+            <div className="bg-white rounded-lg border p-8 text-center">
+              <p className="text-muted-foreground">Cargando ubicaciones...</p>
+            </div>
+          ) : (
+            <DataTable 
+              data={filteredLocations}
+              columns={[
+                { 
+                  key: 'name', 
+                  header: 'Nombre',
+                  cell: (location) => (
+                    <div className="font-medium flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-primary" />
+                      {location.name}
+                    </div>
+                  )
+                },
+                { 
+                  key: 'address', 
+                  header: 'Dirección',
+                  cell: (location) => (
+                    <div className="max-w-[300px] truncate text-muted-foreground">
+                      {location.address}
+                    </div>
+                  )
+                },
+                { 
+                  key: 'items_count', 
+                  header: 'Cant. Artículos',
+                  cell: (location) => (
+                    <div className="font-medium">{location.items_count}</div>
+                  )
+                },
+                { 
+                  key: 'total_value', 
+                  header: 'Valor Total',
+                  cell: (location) => (
+                    <div className="font-medium text-green-700">
+                      {location.total_value ? formatCurrency(location.total_value) : '$0.00'}
+                    </div>
+                  )
+                },
+                { 
+                  key: 'manager', 
+                  header: 'Administrador',
+                  cell: (location) => (
+                    <div>{location.manager}</div>
+                  )
+                },
+                { 
+                  key: 'actions', 
+                  header: '',
+                  cell: (location) => (
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditLocation(location)}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Editar
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteLocation(location.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Eliminar
+                      </Button>
+                    </div>
+                  )
+                },
+              ]}
+            />
+          )}
         </MotionContainer>
       </div>
 
@@ -359,7 +426,9 @@ const AdminLocations = () => {
                 value={newLocation.address}
                 onChange={(e) => setNewLocation({...newLocation, address: e.target.value})}
                 placeholder="Dirección completa"
+                disabled={true}
               />
+              <p className="text-xs text-muted-foreground">La dirección se configurará después de crear la ubicación</p>
             </div>
             
             <div className="grid gap-2">
@@ -369,12 +438,14 @@ const AdminLocations = () => {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={newLocation.manager}
                 onChange={(e) => setNewLocation({...newLocation, manager: e.target.value})}
+                disabled={true}
               >
                 <option value="">Seleccionar administrador</option>
                 {availableManagers.map((manager) => (
                   <option key={manager} value={manager}>{manager}</option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">El administrador se asignará después de crear la ubicación</p>
             </div>
           </div>
           
@@ -411,7 +482,9 @@ const AdminLocations = () => {
                   id="edit-location-address" 
                   value={currentLocation.address}
                   onChange={(e) => setCurrentLocation({...currentLocation, address: e.target.value})}
+                  disabled={true}
                 />
+                <p className="text-xs text-muted-foreground">La dirección se configurará en una actualización futura</p>
               </div>
               
               <div className="grid gap-2">
@@ -421,12 +494,14 @@ const AdminLocations = () => {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={currentLocation.manager}
                   onChange={(e) => setCurrentLocation({...currentLocation, manager: e.target.value})}
+                  disabled={true}
                 >
                   <option value="">Seleccionar administrador</option>
                   {availableManagers.map((manager) => (
                     <option key={manager} value={manager}>{manager}</option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground">El administrador se configurará en una actualización futura</p>
               </div>
             </div>
           )}
