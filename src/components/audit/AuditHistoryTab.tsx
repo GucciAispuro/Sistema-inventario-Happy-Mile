@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
@@ -34,10 +35,10 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
   const [selectedAudit, setSelectedAudit] = useState<AuditHistory | null>(null);
   const [deletingAudit, setDeletingAudit] = useState<AuditHistory | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [setLoading] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   
   const handleViewDetails = async (audit: AuditHistory) => {
-    setLoading(true);
+    setIsLoadingDetails(true);
     try {
       if (audit.items && audit.items.length > 0) {
         setSelectedAudit(audit);
@@ -67,7 +68,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoadingDetails(false);
     }
   };
 
@@ -190,7 +191,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
                     variant="ghost" 
                     size="sm"
                     onClick={() => handleViewDetails(item)}
-                    disabled={loading || isDeleting}
+                    disabled={loading || isDeleting || isLoadingDetails}
                   >
                     Ver Detalles
                   </Button>
