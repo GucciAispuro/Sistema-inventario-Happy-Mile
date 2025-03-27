@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import MotionContainer from '@/components/ui/MotionContainer';
@@ -132,6 +132,8 @@ const TransaccionesColaborador = () => {
         has_proof: values.evidenceFile && values.evidenceFile.length > 0 ? true : false,
         proof_url: null // In a real app, upload file and store URL
       };
+      
+      console.log("About to insert transaction:", transactionData);
       
       // Insert transaction into Supabase
       const { data, error } = await supabase
