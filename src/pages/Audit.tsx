@@ -9,7 +9,8 @@ import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
-import { FileCheck2, MapPin, Search } from 'lucide-react';
+import { FileCheck2, MapPin, Search, Trash2 } from 'lucide-react';
+import AuditDetailComponent from '@/components/audit/AuditDetail';
 
 // Type definitions
 type AuditHistory = {
@@ -51,6 +52,8 @@ const Audit = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAudit, setSelectedAudit] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   // Fetch locations
   const { 
@@ -60,15 +63,23 @@ const Audit = () => {
     queryKey: ['locations'],
     queryFn: async () => {
       try {
-        // Simulating a fetch of locations - in a real app, this would come from the database
-        return [
-          { id: '1', name: 'Almacén Principal' },
-          { id: '2', name: 'Almacén Secundario' },
-          { id: '3', name: 'Oficina Central' },
-          { id: '4', name: 'CDMX' }
-        ];
+        const { data, error } = await supabase
+          .from('locations')
+          .select('*')
+          .order('name');
+          
+        if (error) {
+          throw error;
+        }
+        
+        return data || [];
       } catch (err) {
         console.error('Error fetching locations:', err);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar las ubicaciones',
+          variant: 'destructive'
+        });
         return [];
       }
     }
@@ -86,44 +97,23 @@ const Audit = () => {
       if (!selectedLocation) return [];
       
       try {
-        // In a real app, fetch items from the database based on location
-        // This is a simulation with hardcoded data
-        return [
-          { 
-            id: '1', 
-            name: 'Silla de Oficina', 
-            category: 'Mobiliario',
-            location: selectedLocation,
-            quantity: 15,
-            last_audit: '2023-05-15'
-          },
-          { 
-            id: '2', 
-            name: 'Papel para Impresora', 
-            category: 'Material de Oficina',
-            location: selectedLocation,
-            quantity: 8,
-            last_audit: '2023-05-10'
-          },
-          { 
-            id: '3', 
-            name: 'Laptop', 
-            category: 'Electrónicos',
-            location: selectedLocation,
-            quantity: 12,
-            last_audit: '2023-06-01'
-          },
-          { 
-            id: '4', 
-            name: 'Kit de Primeros Auxilios', 
-            category: 'Equipo de Seguridad',
-            location: selectedLocation,
-            quantity: 12,
-            last_audit: '2023-05-30'
-          }
-        ];
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('location', selectedLocation);
+          
+        if (error) {
+          throw error;
+        }
+        
+        return data || [];
       } catch (err) {
         console.error('Error fetching inventory items:', err);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar los artículos',
+          variant: 'destructive'
+        });
         return [];
       }
     }
@@ -281,6 +271,89 @@ const Audit = () => {
     }
   };
 
+  // Delete an audit record
+  const handleDeleteAudit = async (auditId: string) => {
+    try {
+      // First, delete all related audit items
+      const { error: itemsError } = await supabase
+        .from('audit_items')
+        .delete()
+        .eq('audit_id', auditId);
+
+      if (itemsError) {
+        throw new Error(`Error al eliminar los elementos de la auditoría: ${itemsError.message}`);
+      }
+
+      // Then, delete the audit record
+      const { error: auditError } = await supabase
+        .from('audits')
+        .delete()
+        .eq('id', auditId);
+
+      if (auditError) {
+        throw new Error(`Error al eliminar la auditoría: ${auditError.message}`);
+      }
+
+      // Success!
+      toast({
+        title: 'Auditoría Eliminada',
+        description: 'La auditoría ha sido eliminada exitosamente.',
+      });
+
+      // Refetch audit history
+      refetchAuditHistory();
+    } catch (error) {
+      console.error('Error deleting audit:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Error desconocido al eliminar la auditoría',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // View audit details
+  const handleViewDetails = async (auditId: string) => {
+    try {
+      // Fetch audit details
+      const { data: auditData, error: auditError } = await supabase
+        .from('audits')
+        .select('*')
+        .eq('id', auditId)
+        .single();
+
+      if (auditError) {
+        throw auditError;
+      }
+
+      // Fetch audit items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('audit_items')
+        .select('*')
+        .eq('audit_id', auditId);
+
+      if (itemsError) {
+        throw itemsError;
+      }
+
+      // Combine data
+      const auditDetail = {
+        ...auditData,
+        items: itemsData || []
+      };
+
+      setSelectedAudit(auditDetail);
+      setIsDetailOpen(true);
+    } catch (error) {
+      console.error('Error fetching audit details:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los detalles de la auditoría',
+        variant: 'destructive'
+      });
+    }
+  };
+
   return (
     <Layout title="Auditoría de Inventario">
       <div className="space-y-6">
@@ -416,13 +489,13 @@ const Audit = () => {
             
             <TabsContent value="history">
               <div className="bg-white rounded-lg border">
-                <div className="grid grid-cols-6 gap-2 font-medium text-sm p-4 border-b bg-muted/50">
+                <div className="grid grid-cols-7 gap-2 font-medium text-sm p-4 border-b bg-muted/50">
                   <div className="col-span-1">Ubicación</div>
                   <div className="col-span-1">Fecha</div>
                   <div className="col-span-1">Realizada por</div>
                   <div className="col-span-1 text-center">Artículos Auditados</div>
                   <div className="col-span-1 text-center">Discrepancias</div>
-                  <div className="col-span-1"></div>
+                  <div className="col-span-2 text-right">Acciones</div>
                 </div>
                 
                 <div className="divide-y">
@@ -436,7 +509,7 @@ const Audit = () => {
                     </div>
                   ) : (
                     auditHistory.map((audit) => (
-                      <div key={audit.id} className="grid grid-cols-6 gap-2 p-4 hover:bg-muted/20">
+                      <div key={audit.id} className="grid grid-cols-7 gap-2 p-4 hover:bg-muted/20">
                         <div className="col-span-1">{audit.location}</div>
                         <div className="col-span-1">{audit.date}</div>
                         <div className="col-span-1">{audit.user_name}</div>
@@ -446,9 +519,17 @@ const Audit = () => {
                         }`}>
                           {audit.discrepancies}
                         </div>
-                        <div className="col-span-1 text-right">
-                          <Button variant="outline" size="sm">
+                        <div className="col-span-2 text-right space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewDetails(audit.id)}>
                             Ver Detalles
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDeleteAudit(audit.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Eliminar
                           </Button>
                         </div>
                       </div>
@@ -460,6 +541,13 @@ const Audit = () => {
           </Tabs>
         </MotionContainer>
       </div>
+      
+      {/* Audit Detail Dialog */}
+      <AuditDetailComponent 
+        audit={selectedAudit}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+      />
     </Layout>
   );
 };
