@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { 
   ArrowDown, 
   ArrowUp,
@@ -18,7 +20,7 @@ import {
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// Esquema de validación para el formulario
+// Schema for form validation
 const formSchema = z.object({
   item: z.string().min(1, "Seleccione un artículo"),
   location: z.string().min(1, "Seleccione una ubicación"),
@@ -30,7 +32,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Datos de ejemplo para artículos y ubicaciones
+// Example data for items and locations
 const itemsData = [
   { id: 1, name: 'Silla de Oficina', category: 'Mobiliario' },
   { id: 2, name: 'Papel de Impresora', category: 'Suministros de Oficina' },
@@ -50,7 +52,7 @@ const TransaccionesColaborador = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [transacciones, setTransacciones] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -63,51 +65,119 @@ const TransaccionesColaborador = () => {
     },
   });
   
-  useEffect(() => {
-    // Verificar autenticación
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
+  // Fetch recent transactions for this user
+  const { data: transactions = [], refetch } = useQuery({
+    queryKey: ['colaborador-transactions'],
+    queryFn: async () => {
+      try {
+        console.log("Fetching recent transactions for colaborador view");
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error("Error fetching transactions:", error);
+          toast({
+            title: 'Error al cargar transacciones',
+            description: error.message,
+            variant: 'destructive'
+          });
+          return [];
+        }
+
+        console.log("Fetched transactions:", data);
+        return data || [];
+      } catch (err) {
+        console.error("Error in transaction query:", err);
+        return [];
+      }
     }
-    
-    // Podríamos verificar si el rol es "colaborador", pero para esta demo permitimos cualquier rol
-    // para simplificar la navegación
-  }, [navigate]);
+  });
   
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
     console.log("Datos enviados:", values);
+    setIsSubmitting(true);
     
-    // Simulamos la creación de una transacción
-    const nuevaTransaccion = {
-      id: transacciones.length + 1,
-      item: itemsData.find(i => i.id.toString() === values.item)?.name || values.item,
-      location: locationsData.find(l => l.id.toString() === values.location)?.name || values.location,
-      type: values.type,
-      quantity: values.quantity,
-      date: new Date().toISOString().split('T')[0],
-      user: "Colaborador", // En una aplicación real, obtendríamos esto de la sesión del usuario
-      notes: values.notes || "Sin notas",
-      has_proof: values.evidenceFile && values.evidenceFile.length > 0
-    };
-    
-    setTransacciones([nuevaTransaccion, ...transacciones]);
-    
-    toast({
-      title: "Transacción registrada",
-      description: `Se ha registrado correctamente la transacción de ${values.type === 'IN' ? 'entrada' : 'salida'}.`,
-    });
-    
-    // Reiniciar formulario
-    form.reset({
-      item: '',
-      location: '',
-      type: 'IN',
-      quantity: 1,
-      notes: '',
-    });
-    
-    setFilePreview(null);
+    try {
+      // Get item and location details
+      const selectedItem = itemsData.find(i => i.id.toString() === values.item);
+      const selectedLocation = locationsData.find(l => l.id.toString() === values.location);
+      
+      if (!selectedItem || !selectedLocation) {
+        toast({
+          title: "Error",
+          description: "Seleccione un artículo y ubicación válidos.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Generate a date in YYYY-MM-DD format
+      const formattedDate = new Date().toISOString().split('T')[0];
+      
+      // Prepare transaction data
+      const transactionData = {
+        item: selectedItem.name,
+        category: selectedItem.category,
+        location: selectedLocation.name,
+        type: values.type,
+        quantity: values.quantity,
+        date: formattedDate,
+        user_id: "colaborador", // In a real app, use the authenticated user's ID
+        user_name: "Colaborador", // In a real app, use the authenticated user's name
+        notes: values.notes || null,
+        has_proof: values.evidenceFile && values.evidenceFile.length > 0 ? true : false,
+        proof_url: null // In a real app, upload file and store URL
+      };
+      
+      // Insert transaction into Supabase
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(transactionData);
+      
+      if (error) {
+        console.error("Error saving transaction:", error);
+        toast({
+          title: "Error al guardar",
+          description: error.message,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Show success message
+      toast({
+        title: "Transacción registrada",
+        description: `Se ha registrado correctamente la transacción de ${values.type === 'IN' ? 'entrada' : 'salida'}.`,
+      });
+      
+      // Reset form
+      form.reset({
+        item: '',
+        location: '',
+        type: 'IN',
+        quantity: 1,
+        notes: '',
+      });
+      
+      setFilePreview(null);
+      
+      // Refetch transactions to update the list
+      refetch();
+    } catch (err) {
+      console.error("Error processing transaction:", err);
+      toast({
+        title: "Error inesperado",
+        description: "Ocurrió un error al procesar la transacción.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,7 +185,7 @@ const TransaccionesColaborador = () => {
     if (files && files.length > 0) {
       form.setValue('evidenceFile', files);
       
-      // Crear preview si es imagen
+      // Create preview if it's an image
       const fileType = files[0].type;
       if (fileType.includes('image')) {
         const reader = new FileReader();
@@ -124,7 +194,7 @@ const TransaccionesColaborador = () => {
         };
         reader.readAsDataURL(files[0]);
       } else {
-        // Si no es imagen, mostrar un texto indicando que hay un archivo
+        // If not an image, show a text indicating there's a file
         setFilePreview('file');
       }
     } else {
@@ -313,8 +383,12 @@ const TransaccionesColaborador = () => {
                     </div>
                   </FormItem>
                   
-                  <Button type="submit" className="w-full">
-                    Registrar Transacción
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Procesando...' : 'Registrar Transacción'}
                   </Button>
                 </form>
               </Form>
@@ -323,14 +397,14 @@ const TransaccionesColaborador = () => {
             <div className="bg-card p-6 rounded-lg shadow-sm">
               <h2 className="text-xl font-semibold mb-4">Transacciones Recientes</h2>
               
-              {transacciones.length > 0 ? (
+              {transactions.length > 0 ? (
                 <div className="space-y-4">
-                  {transacciones.map((transaccion) => (
-                    <div key={transaccion.id} className="border rounded-md p-3 hover:bg-muted/50 transition-colors">
+                  {transactions.map((transaction) => (
+                    <div key={transaction.id} className="border rounded-md p-3 hover:bg-muted/50 transition-colors">
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="flex items-center mb-1">
-                            {transaccion.type === 'IN' ? (
+                            {transaction.type === 'IN' ? (
                               <div className="flex items-center">
                                 <ArrowDown className="h-3 w-3 text-green-600 mr-1" />
                                 <span className="text-green-600 font-medium">ENTRADA</span>
@@ -342,17 +416,17 @@ const TransaccionesColaborador = () => {
                               </div>
                             )}
                           </div>
-                          <div className="font-medium">{transaccion.item}</div>
+                          <div className="font-medium">{transaction.item}</div>
                           <div className="text-sm text-muted-foreground">
-                            Ubicación: {transaccion.location}
+                            Ubicación: {transaction.location}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Cantidad: {transaccion.quantity}
+                            Cantidad: {transaction.quantity}
                           </div>
                         </div>
                         <div className="text-right text-sm">
-                          <div className="text-muted-foreground">{transaccion.date}</div>
-                          {transaccion.has_proof && (
+                          <div className="text-muted-foreground">{transaction.date}</div>
+                          {transaction.has_proof && (
                             <span className="inline-flex items-center text-xs bg-green-100 text-green-800 rounded-full px-2 py-0.5 mt-1">
                               <FileText className="h-3 w-3 mr-1" />
                               Comprobante
@@ -360,9 +434,9 @@ const TransaccionesColaborador = () => {
                           )}
                         </div>
                       </div>
-                      {transaccion.notes && (
+                      {transaction.notes && (
                         <div className="mt-2 text-sm text-muted-foreground border-t pt-2">
-                          {transaccion.notes}
+                          {transaction.notes}
                         </div>
                       )}
                     </div>
