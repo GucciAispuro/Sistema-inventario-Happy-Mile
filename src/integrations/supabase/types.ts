@@ -83,51 +83,6 @@ export type Database = {
         }
         Relationships: []
       }
-      inventory: {
-        Row: {
-          category: string
-          created_at: string | null
-          id: string
-          location: string
-          name: string
-          quantity: number
-        }
-        Insert: {
-          category: string
-          created_at?: string | null
-          id?: string
-          location: string
-          name: string
-          quantity?: number
-        }
-        Update: {
-          category?: string
-          created_at?: string | null
-          id?: string
-          location?: string
-          name?: string
-          quantity?: number
-        }
-        Relationships: []
-      }
-      locations: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
       transactions: {
         Row: {
           category: string
