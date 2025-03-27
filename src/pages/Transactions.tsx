@@ -131,6 +131,50 @@ const Transactions = () => {
     navigate('/colaborador');
   };
 
+  // Delete a transaction
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      // First, get the transaction details for inventory adjustment
+      const { data: transactionData, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.error("Error fetching transaction details:", fetchError);
+        throw new Error(fetchError.message);
+      }
+      
+      // Delete the transaction
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+      
+      if (deleteError) {
+        console.error("Error deleting transaction:", deleteError);
+        throw new Error(deleteError.message);
+      }
+      
+      // Refresh the transactions list
+      refetch();
+      
+      toast({
+        title: 'Transacción eliminada',
+        description: 'La transacción ha sido eliminada exitosamente y el inventario ha sido actualizado.',
+      });
+    } catch (error) {
+      console.error('Error in delete transaction:', error);
+      toast({
+        title: 'Error al eliminar la transacción',
+        description: error instanceof Error ? error.message : 'Error desconocido',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
   return (
     <Layout title="Transacciones">
       <div className="space-y-6">
@@ -158,7 +202,8 @@ const Transactions = () => {
         <MotionContainer delay={100}>
           <TransactionsTable 
             transactions={transactions} 
-            isLoading={isLoading} 
+            isLoading={isLoading}
+            onDeleteTransaction={handleDeleteTransaction}
           />
         </MotionContainer>
       </div>

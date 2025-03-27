@@ -7,10 +7,25 @@ import {
   Clock,
   User,
   FileText,
-  X
+  X,
+  Download,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 type Transaction = {
   id: string;
@@ -31,14 +46,78 @@ type Transaction = {
 interface TransactionsTableProps {
   transactions: Transaction[];
   isLoading: boolean;
+  onDeleteTransaction?: (id: string) => Promise<void>;
 }
 
-const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, isLoading }) => {
+const TransactionsTable: React.FC<TransactionsTableProps> = ({ 
+  transactions, 
+  isLoading,
+  onDeleteTransaction
+}) => {
   const [selectedProof, setSelectedProof] = useState<Transaction | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   
   const handleViewProof = (transaction: Transaction) => {
     console.log("Viewing proof for transaction:", transaction);
     setSelectedProof(transaction);
+  };
+
+  const handleDownloadProof = async (transaction: Transaction) => {
+    if (!transaction.proof_url) {
+      toast({
+        title: 'Error',
+        description: 'No hay URL de comprobante disponible para descargar.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      // Create a temporary anchor element to trigger the download
+      const link = document.createElement('a');
+      link.href = transaction.proof_url;
+      
+      // Extract filename from URL or create a default one
+      const filename = transaction.proof_url.split('/').pop() || 
+                      `comprobante-${transaction.id}.pdf`;
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: 'Descarga iniciada',
+        description: 'El comprobante se está descargando.'
+      });
+    } catch (error) {
+      console.error('Error downloading proof:', error);
+      toast({
+        title: 'Error de descarga',
+        description: 'No se pudo descargar el comprobante.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingTransaction || !onDeleteTransaction) return;
+    
+    try {
+      await onDeleteTransaction(deletingTransaction.id);
+      setDeletingTransaction(null);
+      toast({
+        title: 'Transacción eliminada',
+        description: 'La transacción ha sido eliminada exitosamente.'
+      });
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar la transacción.',
+        variant: 'destructive'
+      });
+    }
   };
   
   console.log("Rendering TransactionsTable with", transactions.length, "transactions");
@@ -100,15 +179,26 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, isL
             header: 'Comprobante',
             cell: (transaction: Transaction) => (
               transaction.has_proof ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 px-2"
-                  onClick={() => handleViewProof(transaction)}
-                >
-                  <FileText className="h-3 w-3 mr-1" />
-                  Ver
-                </Button>
+                <div className="flex space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2"
+                    onClick={() => handleViewProof(transaction)}
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    Ver
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2"
+                    onClick={() => handleDownloadProof(transaction)}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Descargar
+                  </Button>
+                </div>
               ) : (
                 <span className="text-muted-foreground text-xs">Ninguno</span>
               )
@@ -123,6 +213,44 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, isL
               </div>
             )
           },
+          {
+            key: 'actions',
+            header: 'Acciones',
+            cell: (transaction: Transaction) => (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 text-destructive hover:text-white hover:bg-destructive"
+                    onClick={() => setDeletingTransaction(transaction)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Eliminar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar esta transacción?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. Eliminará permanentemente la transacción
+                      {transaction.type === 'IN' 
+                        ? ' y ajustará el inventario reduciendo los artículos.' 
+                        : ' y ajustará el inventario aumentando los artículos.'}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeletingTransaction(null)}>
+                      Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteConfirm}>
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )
+          }
         ]}
         loading={isLoading}
         emptyState="No hay transacciones encontradas"
@@ -174,14 +302,52 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, isL
             </div>
           </div>
           
-          <DialogClose asChild>
-            <Button variant="outline" className="w-full">
-              <X className="h-4 w-4 mr-2" />
-              Cerrar
-            </Button>
-          </DialogClose>
+          <div className="flex space-x-2">
+            {selectedProof?.proof_url && (
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => selectedProof && handleDownloadProof(selectedProof)}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Descargar
+              </Button>
+            )}
+            <DialogClose asChild>
+              <Button variant="outline" className="flex-1">
+                <X className="h-4 w-4 mr-2" />
+                Cerrar
+              </Button>
+            </DialogClose>
+          </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog 
+        open={!!deletingTransaction && !onDeleteTransaction} 
+        onOpenChange={(open) => !open && setDeletingTransaction(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta transacción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Eliminará permanentemente la transacción
+              {deletingTransaction?.type === 'IN' 
+                ? ' y ajustará el inventario reduciendo los artículos.' 
+                : ' y ajustará el inventario aumentando los artículos.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingTransaction(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
