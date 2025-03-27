@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
+import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
 import { 
   Plus, 
   Search,
@@ -95,6 +96,17 @@ const Inventory = () => {
     });
   };
 
+  const handleExport = () => {
+    const dataToExport = formatInventoryForExport(filteredItems);
+    const timestamp = new Date().toISOString().split('T')[0];
+    exportToExcel(dataToExport, `inventario-${timestamp}`, 'Inventario');
+    
+    toast({
+      title: "Exportación exitosa",
+      description: `Se ha exportado el inventario a Excel`,
+    });
+  };
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case 'Bajo': return 'destructive';
@@ -155,7 +167,7 @@ const Inventory = () => {
                 Filtrar
               </Button>
               
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
               </Button>

@@ -50,7 +50,7 @@ export function AppSidebar() {
         <MotionContainer className="flex items-center gap-2">
           <div className="h-10 w-auto">
             <img 
-              src="/lovable-uploads/5399f4ec-e1d9-4ad7-bd49-730fd7167990.png" 
+              src="/lovable-uploads/2c5878e5-7b09-4745-a10d-490c059a167d.png" 
               alt="Happy Mile Logo" 
               className="h-full w-auto object-contain"
             />
