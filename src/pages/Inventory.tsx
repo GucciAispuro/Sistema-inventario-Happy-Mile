@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
+import EditItemDialog from '@/components/inventory/EditItemDialog';
 import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -60,6 +61,8 @@ const Inventory = () => {
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [showEditItemDialog, setShowEditItemDialog] = useState(false);
   
   const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
   const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
@@ -195,6 +198,44 @@ const Inventory = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleUpdateItem = async (id: string, updatedItem: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .update({
+          name: updatedItem.name,
+          category: updatedItem.category,
+          location: updatedItem.location,
+          quantity: updatedItem.quantity,
+          min_stock: updatedItem.min_stock,
+          cost: updatedItem.cost
+        })
+        .eq('id', id)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Artículo actualizado",
+        description: `${updatedItem.name} ha sido actualizado correctamente`,
+      });
+    } catch (error) {
+      console.error('Error updating item:', error);
+      toast({
+        title: "Error al actualizar artículo",
+        description: "No se pudo actualizar el artículo en el inventario",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditItem = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setShowEditItemDialog(true);
   };
 
   const handleExport = () => {
@@ -410,7 +451,11 @@ const Inventory = () => {
                       Mover
                     </Button>
                     {userRole === 'admin' && (
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEditItem(item)}
+                      >
                         Editar
                       </Button>
                     )}
@@ -429,6 +474,14 @@ const Inventory = () => {
         onOpenChange={setShowAddItemDialog}
         locations={locations}
         onAddItem={handleAddItem}
+      />
+
+      <EditItemDialog
+        open={showEditItemDialog}
+        onOpenChange={setShowEditItemDialog}
+        locations={locations}
+        item={selectedItem}
+        onUpdateItem={handleUpdateItem}
       />
     </Layout>
   );
