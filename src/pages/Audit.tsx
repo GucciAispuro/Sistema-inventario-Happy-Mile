@@ -52,7 +52,7 @@ const Audit = () => {
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Fetch locations
+  // Fetch locations from the database
   const { 
     data: locations = [], 
     isLoading: isLoadingLocations 
@@ -60,13 +60,15 @@ const Audit = () => {
     queryKey: ['locations'],
     queryFn: async () => {
       try {
-        // Simulating a fetch of locations - in a real app, this would come from the database
-        return [
-          { id: '1', name: 'Almacén Principal' },
-          { id: '2', name: 'Almacén Secundario' },
-          { id: '3', name: 'Oficina Central' },
-          { id: '4', name: 'CDMX' }
-        ];
+        const { data, error } = await supabase
+          .from('locations')
+          .select('id, name');
+        
+        if (error) {
+          throw error;
+        }
+        
+        return data || [];
       } catch (err) {
         console.error('Error fetching locations:', err);
         return [];
