@@ -1,10 +1,10 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -18,141 +18,103 @@ import {
   Clock,
   User
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { toast } from '@/components/ui/use-toast';
 
-// Mock data for transactions
-const transactions = [
-  { 
-    id: 1, 
-    item: 'Silla de Oficina', 
-    category: 'Mobiliario',
-    location: 'CDMX', 
-    type: 'IN', 
-    quantity: 5, 
-    date: '2023-06-01', 
-    user: 'María G.',
-    notes: 'Entrega de nuevo stock',
-    has_proof: true
-  },
-  { 
-    id: 2, 
-    item: 'Papel para Impresora', 
-    category: 'Material de Oficina',
-    location: 'Monterrey', 
-    type: 'OUT', 
-    quantity: 2, 
-    date: '2023-05-31', 
-    user: 'Carlos R.',
-    notes: 'Requisición mensual',
-    has_proof: true
-  },
-  { 
-    id: 3, 
-    item: 'Llanta de Repuesto', 
-    category: 'Piezas de Vehículo',
-    location: 'Guadalajara', 
-    type: 'OUT', 
-    quantity: 1, 
-    date: '2023-05-30', 
-    user: 'Juan P.',
-    notes: 'Reemplazo de emergencia',
-    has_proof: true
-  },
-  { 
-    id: 4, 
-    item: 'Laptop', 
-    category: 'Electrónicos',
-    location: 'CDMX', 
-    type: 'IN', 
-    quantity: 3, 
-    date: '2023-05-29', 
-    user: 'Ana L.',
-    notes: 'Nuevo equipo para depto. de TI',
-    has_proof: true
-  },
-  { 
-    id: 5, 
-    item: 'Tóner para Impresora', 
-    category: 'Material de Oficina',
-    location: 'Culiacán', 
-    type: 'IN', 
-    quantity: 10, 
-    date: '2023-05-28', 
-    user: 'Diego M.',
-    notes: 'Reabastecimiento trimestral',
-    has_proof: false
-  },
-  { 
-    id: 6, 
-    item: 'Chaleco de Seguridad', 
-    category: 'Equipo de Seguridad',
-    location: 'Monterrey', 
-    type: 'OUT', 
-    quantity: 2, 
-    date: '2023-05-28', 
-    user: 'Laura B.',
-    notes: 'Requisitos para operaciones de campo',
-    has_proof: true
-  },
-  { 
-    id: 7, 
-    item: 'Kit de Primeros Auxilios', 
-    category: 'Equipo de Seguridad',
-    location: 'Guadalajara', 
-    type: 'OUT', 
-    quantity: 1, 
-    date: '2023-05-27', 
-    user: 'Roberto S.',
-    notes: 'Reemplazo de kit caducado',
-    has_proof: true
-  },
-  { 
-    id: 8, 
-    item: 'Lámpara de Escritorio', 
-    category: 'Mobiliario',
-    location: 'CDMX', 
-    type: 'IN', 
-    quantity: 8, 
-    date: '2023-05-26', 
-    user: 'Sofía T.',
-    notes: 'Proyecto de expansión de oficina',
-    has_proof: true
-  }
-];
+// Transactions type definition
+type Transaction = {
+  id: string;
+  item: string;
+  category: string;
+  location: string;
+  type: 'IN' | 'OUT';
+  quantity: number;
+  date: string;
+  user_name: string;
+  notes: string;
+  has_proof: boolean;
+};
 
 const Transactions = () => {
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredTransactions, setFilteredTransactions] = useState(transactions);
-  
-  useEffect(() => {
-    // Check authentication
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterType, setFilterType] = useState('');
+
+  // Fetch transactions
+  const { 
+    data: transactions = [], 
+    isLoading, 
+    error 
+  } = useQuery<Transaction[]>({
+    queryKey: ['transactions', searchQuery, filterCategory, filterType],
+    queryFn: async () => {
+      let query = supabase.from('transactions').select('*');
+
+      // Apply search filter
+      if (searchQuery) {
+        query = query.or(
+          `item.ilike.%${searchQuery}%,` +
+          `category.ilike.%${searchQuery}%,` +
+          `location.ilike.%${searchQuery}%,` +
+          `user_name.ilike.%${searchQuery}%,` +
+          `notes.ilike.%${searchQuery}%`
+        );
+      }
+
+      // Apply category filter
+      if (filterCategory) {
+        query = query.eq('category', filterCategory);
+      }
+
+      // Apply type filter
+      if (filterType) {
+        query = query.eq('type', filterType);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast({
+          title: 'Error fetching transactions',
+          description: error.message,
+          variant: 'destructive'
+        });
+        return [];
+      }
+
+      return data;
     }
-    
-    // Get user role
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
+  });
+
+  // Unique categories for filter dropdown
+  const categories = Array.from(new Set(transactions.map(t => t.category)));
+
+  // Check authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/');
+      }
+    };
+    checkAuth();
   }, [navigate]);
-  
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredTransactions(transactions);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = transactions.filter(transaction => 
-        transaction.item.toLowerCase().includes(query) ||
-        transaction.category.toLowerCase().includes(query) ||
-        transaction.location.toLowerCase().includes(query) ||
-        transaction.user.toLowerCase().includes(query) ||
-        transaction.notes.toLowerCase().includes(query)
-      );
-      setFilteredTransactions(filtered);
-    }
-  }, [searchQuery]);
+
+  // Export transactions to CSV
+  const handleExport = () => {
+    // Implement export logic
+    toast({
+      title: 'Export functionality coming soon!'
+    });
+  };
 
   return (
     <Layout title="Transacciones">
@@ -170,12 +132,53 @@ const Transactions = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Select 
+                value={filterCategory} 
+                onValueChange={setFilterCategory}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={filterType} 
+                onValueChange={setFilterType}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tipo de Transacción" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IN">Entrada</SelectItem>
+                  <SelectItem value="OUT">Salida</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setFilterCategory('');
+                  setFilterType('');
+                  setSearchQuery('');
+                }}
+              >
                 <Filter className="h-4 w-4 mr-2" />
-                Filtrar
+                Limpiar Filtros
               </Button>
               
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleExport}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
               </Button>
@@ -190,7 +193,7 @@ const Transactions = () => {
         
         <MotionContainer delay={100}>
           <DataTable 
-            data={filteredTransactions}
+            data={transactions}
             columns={[
               { key: 'item', header: 'Artículo' },
               { key: 'location', header: 'Ubicación' },
@@ -231,12 +234,12 @@ const Transactions = () => {
                 )
               },
               { 
-                key: 'user', 
+                key: 'user_name', 
                 header: 'Usuario',
                 cell: (transaction) => (
                   <div className="flex items-center">
                     <User className="h-3 w-3 mr-1 text-muted-foreground" />
-                    {transaction.user}
+                    {transaction.user_name}
                   </div>
                 )
               },
@@ -259,11 +262,13 @@ const Transactions = () => {
                 header: 'Notas',
                 cell: (transaction) => (
                   <div className="max-w-[200px] truncate text-muted-foreground">
-                    {transaction.notes}
+                    {transaction.notes || 'Sin notas'}
                   </div>
                 )
               },
             ]}
+            loading={isLoading}
+            emptyState="No hay transacciones encontradas"
           />
         </MotionContainer>
       </div>
