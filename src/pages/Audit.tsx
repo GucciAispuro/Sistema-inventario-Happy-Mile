@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -26,6 +25,15 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Mock data for inventory items by location
 const inventoryItems = [
@@ -44,15 +52,40 @@ const inventoryItems = [
 // Get unique locations
 const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
 
+// Interfaces for our data
+interface AuditItem {
+  id: number;
+  name: string;
+  category: string;
+  location: string;
+  system_quantity: number;
+  actual_quantity: number | null;
+  difference: number | null;
+  last_audit: string;
+}
+
+interface AuditHistory {
+  id: string;
+  location: string;
+  date: string;
+  user: string;
+  items_count: number;
+  discrepancies: number;
+  items?: AuditItem[];
+}
+
 const Audit = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [auditItems, setAuditItems] = useState<any[]>([]);
+  const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [activeTab, setActiveTab] = useState("pending");
-  const [auditHistory, setAuditHistory] = useState<any[]>([]);
+  const [auditHistory, setAuditHistory] = useState<AuditHistory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedAudit, setSelectedAudit] = useState<AuditHistory | null>(null);
   
   useEffect(() => {
     // Check authentication
@@ -65,7 +98,42 @@ const Audit = () => {
     // Get user role
     const role = localStorage.getItem('userRole');
     setUserRole(role);
+
+    // Load audit history when component mounts
+    loadAuditHistory();
   }, [navigate]);
+  
+  // Load audit history from Supabase
+  const loadAuditHistory = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('audits')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error loading audit history:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo cargar el historial de auditorías',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setAuditHistory(data || []);
+    } catch (err) {
+      console.error('Error in loadAuditHistory:', err);
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error al cargar el historial',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   useEffect(() => {
     if (selectedLocation) {
@@ -104,8 +172,8 @@ const Audit = () => {
     );
   };
 
-  // Save audit
-  const handleSaveAudit = () => {
+  // Save audit to Supabase
+  const handleSaveAudit = async () => {
     // Check if all items have been counted
     const uncountedItems = auditItems.filter(item => item.actual_quantity === null);
     if (uncountedItems.length > 0) {
@@ -117,32 +185,96 @@ const Audit = () => {
       return;
     }
 
-    // Generate mock history entry for the audit
-    const historyEntry = {
-      id: Date.now(),
-      location: selectedLocation,
-      date: new Date().toISOString().substring(0, 10),
-      user: "Usuario Actual",
-      items_count: auditItems.length,
-      discrepancies: auditItems.filter(item => item.difference !== 0).length
-    };
-    
-    // In a real app, we would send this data to the backend
-    setAuditHistory(prev => [historyEntry, ...prev]);
-
-    toast({
-      title: "Auditoría guardada",
-      description: `Se ha guardado la auditoría de ${selectedLocation} correctamente`,
-    });
-
-    // Reset form
-    resetAuditForm();
+    setLoading(true);
+    try {
+      // Get current user info
+      const userName = localStorage.getItem('userName') || 'Usuario';
+      
+      // Create the audit record
+      const auditData = {
+        location: selectedLocation,
+        date: new Date().toISOString().substring(0, 10),
+        user: userName,
+        items_count: auditItems.length,
+        discrepancies: auditItems.filter(item => item.difference !== 0).length,
+        items: auditItems
+      };
+      
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('audits')
+        .insert(auditData)
+        .select();
+      
+      if (error) {
+        console.error('Error saving audit:', error);
+        throw error;
+      }
+      
+      toast({
+        title: "Auditoría guardada",
+        description: `Se ha guardado la auditoría de ${selectedLocation} correctamente`,
+      });
+      
+      // Reset form and refresh history
+      resetAuditForm();
+      loadAuditHistory();
+      setActiveTab("history");
+      
+    } catch (err) {
+      console.error('Error in save audit:', err);
+      toast({
+        title: "Error al guardar",
+        description: "No se pudo guardar la auditoría. Intente nuevamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetAuditForm = () => {
     setSelectedLocation('');
     setAuditItems([]);
     setSearchQuery('');
+  };
+
+  // View audit details
+  const handleViewDetails = async (audit: AuditHistory) => {
+    setLoading(true);
+    try {
+      // If the audit already has items loaded, use them
+      if (audit.items && audit.items.length > 0) {
+        setSelectedAudit(audit);
+        setDetailsOpen(true);
+        return;
+      }
+      
+      // Otherwise, load the items from Supabase
+      const { data, error } = await supabase
+        .from('audit_items')
+        .select('*')
+        .eq('audit_id', audit.id);
+      
+      if (error) {
+        console.error('Error loading audit items:', error);
+        throw error;
+      }
+      
+      const auditWithItems = { ...audit, items: data || [] };
+      setSelectedAudit(auditWithItems);
+      setDetailsOpen(true);
+      
+    } catch (err) {
+      console.error('Error loading audit details:', err);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los detalles de la auditoría",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -248,9 +380,9 @@ const Audit = () => {
 
               <MotionContainer delay={200}>
                 <div className="flex justify-end">
-                  <Button onClick={handleSaveAudit}>
+                  <Button onClick={handleSaveAudit} disabled={loading}>
                     <Save className="h-4 w-4 mr-2" />
-                    Guardar Auditoría
+                    {loading ? 'Guardando...' : 'Guardar Auditoría'}
                   </Button>
                 </div>
               </MotionContainer>
@@ -275,6 +407,7 @@ const Audit = () => {
           <MotionContainer>
             <DataTable 
               data={auditHistory}
+              loading={loading}
               columns={[
                 { key: 'location', header: 'Ubicación' },
                 { key: 'date', header: 'Fecha' },
@@ -292,22 +425,85 @@ const Audit = () => {
                 {
                   key: 'actions',
                   header: '',
-                  cell: () => (
-                    <Button variant="ghost" size="sm">
+                  cell: (item) => (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleViewDetails(item)}
+                      disabled={loading}
+                    >
                       Ver Detalles
                     </Button>
                   )
                 }
               ]}
+              emptyState="No hay registros de auditorías previas"
             />
-            {auditHistory.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No hay registros de auditorías previas</p>
-              </div>
-            )}
           </MotionContainer>
         </TabsContent>
       </Tabs>
+
+      {/* Audit Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Detalles de la Auditoría</DialogTitle>
+            <DialogDescription>
+              {selectedAudit && (
+                <div className="flex flex-wrap gap-4 text-sm mt-2">
+                  <div>
+                    <span className="font-medium">Ubicación:</span> {selectedAudit.location}
+                  </div>
+                  <div>
+                    <span className="font-medium">Fecha:</span> {selectedAudit.date}
+                  </div>
+                  <div>
+                    <span className="font-medium">Auditor:</span> {selectedAudit.user}
+                  </div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="overflow-auto max-h-[60vh]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Artículo</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Cant. Sistema</TableHead>
+                  <TableHead>Cant. Real</TableHead>
+                  <TableHead>Diferencia</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedAudit?.items?.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>{item.system_quantity}</TableCell>
+                    <TableCell>{item.actual_quantity}</TableCell>
+                    <TableCell className={
+                      item.difference === 0 ? 'text-gray-600' : 
+                      item.difference && item.difference > 0 ? 'text-green-600' : 
+                      'text-red-600'
+                    }>
+                      {item.difference !== null && item.difference > 0 ? `+${item.difference}` : item.difference}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!selectedAudit?.items?.length && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4">
+                      No hay detalles disponibles para esta auditoría
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
