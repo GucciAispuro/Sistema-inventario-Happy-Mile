@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -112,7 +113,7 @@ const Inventory = () => {
           cost: item.cost || 0,
           status: 
             item.quantity === 0 ? 'Agotado' :
-            (item.min_stock ? item.quantity < item.min_stock / 2 ? 'Crítico' :
+            item.min_stock ? (item.quantity < item.min_stock / 2 ? 'Crítico' :
             item.quantity < item.min_stock ? 'Bajo' : 'Normal') : 'Normal',
           total_value: (item.cost || 0) * item.quantity
         }));
