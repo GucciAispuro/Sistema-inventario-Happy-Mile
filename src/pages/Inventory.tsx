@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
 import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, 
   Search,
@@ -34,18 +35,17 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 
-const initialInventoryItems = [
-  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000 },
-  { id: 2, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Bajo', cost: 120, total_value: 960 },
-  { id: 3, name: 'Laptop', category: 'Electrónicos', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal', cost: 15000, total_value: 180000 },
-  { id: 4, name: 'Silla de Oficina', category: 'Mobiliario', location: 'Monterrey', quantity: 7, min_stock: 5, status: 'Normal', cost: 1200, total_value: 8400 },
-  { id: 5, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'Monterrey', quantity: 3, min_stock: 10, status: 'Crítico', cost: 120, total_value: 360 },
-  { id: 6, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', location: 'Guadalajara', quantity: 5, min_stock: 8, status: 'Bajo', cost: 2500, total_value: 12500 },
-  { id: 7, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', location: 'Culiacán', quantity: 4, min_stock: 5, status: 'Bajo', cost: 350, total_value: 1400 },
-  { id: 8, name: 'Tóner para Impresora', category: 'Material de Oficina', location: 'Guadalajara', quantity: 9, min_stock: 2, status: 'Normal', cost: 800, total_value: 7200 },
-  { id: 9, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', location: 'CDMX', quantity: 12, min_stock: 5, status: 'Normal', cost: 650, total_value: 7800 },
-  { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700 },
-];
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  quantity: number;
+  min_stock?: number;
+  cost?: number;
+  status?: string;
+  total_value?: number;
+}
 
 const Inventory = () => {
   const navigate = useNavigate();
@@ -55,15 +55,16 @@ const Inventory = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [inventoryItems, setInventoryItems] = useState(initialInventoryItems);
-  const [filteredItems, setFilteredItems] = useState(initialInventoryItems);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Ensure these arrays are never undefined by providing default empty arrays
   const locations = Array.from(new Set((inventoryItems || []).map(item => item.location)));
   const categories = Array.from(new Set((inventoryItems || []).map(item => item.category)));
-  const statuses = Array.from(new Set((inventoryItems || []).map(item => item.status)));
+  const statuses = Array.from(new Set((inventoryItems || []).map(item => item.status || '')).filter(Boolean));
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -74,7 +75,78 @@ const Inventory = () => {
     
     const role = localStorage.getItem('userRole');
     setUserRole(role);
+
+    fetchInventoryData();
+    
+    // Setup real-time subscription for inventory changes
+    const channel = supabase
+      .channel('inventory-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory' },
+        () => fetchInventoryData()
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [navigate]);
+
+  const fetchInventoryData = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Transform the data to match our UI expectations
+        const formattedData = data.map(item => {
+          // Default values for min_stock and cost
+          const minStock = item.min_stock || 5;
+          const cost = item.cost || 0;
+          
+          // Calculate status based on quantity and min_stock
+          const status = 
+            item.quantity === 0 ? 'Agotado' :
+            item.quantity < minStock / 2 ? 'Crítico' :
+            item.quantity < minStock ? 'Bajo' : 'Normal';
+          
+          // Calculate total value
+          const totalValue = cost * item.quantity;
+          
+          return {
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            location: item.location,
+            quantity: item.quantity,
+            min_stock: minStock,
+            cost: cost,
+            status: status,
+            total_value: totalValue
+          };
+        });
+        
+        setInventoryItems(formattedData);
+        setFilteredItems(formattedData);
+      }
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+      toast({
+        title: "Error al cargar inventario",
+        description: "No se pudo cargar la información del inventario",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   useEffect(() => {
     // Early return if inventoryItems is undefined
@@ -86,8 +158,8 @@ const Inventory = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item => 
         item.name.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
-        item.location.toLowerCase().includes(query)
+        (item.category && item.category.toLowerCase().includes(query)) ||
+        (item.location && item.location.toLowerCase().includes(query))
       );
     }
     
@@ -105,20 +177,44 @@ const Inventory = () => {
     
     setFilteredItems(filtered);
     
-    const total = filtered.reduce((sum, item) => sum + item.total_value, 0);
+    const total = filtered.reduce((sum, item) => sum + (item.total_value || 0), 0);
     setTotalInventoryValue(total);
   }, [searchQuery, selectedLocation, selectedCategory, selectedStatus, inventoryItems]);
 
-  const handleAddItem = (newItem) => {
-    const { delivery_time, ...itemWithoutDeliveryTime } = newItem;
-    
-    // Use the functional form of setState to avoid dependency on current state
-    setInventoryItems(prevItems => [...prevItems, itemWithoutDeliveryTime]);
-    
-    toast({
-      title: "Artículo añadido",
-      description: `${newItem.name} ha sido añadido al inventario`,
-    });
+  const handleAddItem = async (newItem) => {
+    try {
+      // Prepare the item for Supabase (remove UI-specific fields)
+      const { 
+        status, 
+        total_value, 
+        delivery_time, 
+        ...itemForDb 
+      } = newItem;
+      
+      // Insert the new item into Supabase
+      const { data, error } = await supabase
+        .from('inventory')
+        .insert([itemForDb])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // We don't need to manually update the state as the subscription will trigger fetchInventoryData
+      
+      toast({
+        title: "Artículo añadido",
+        description: `${newItem.name} ha sido añadido al inventario`,
+      });
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Error al añadir artículo",
+        description: "No se pudo agregar el artículo al inventario",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleExport = () => {
@@ -146,6 +242,7 @@ const Inventory = () => {
     switch (status) {
       case 'Bajo': return 'destructive';
       case 'Crítico': return 'destructive';
+      case 'Agotado': return 'destructive';
       default: return 'secondary';
     }
   };
@@ -298,14 +395,14 @@ const Inventory = () => {
                 key: 'cost', 
                 header: 'Costo Unitario',
                 cell: (item) => (
-                  <div className="font-medium text-green-700">{formatCurrency(item.cost)}</div>
+                  <div className="font-medium text-green-700">{formatCurrency(item.cost || 0)}</div>
                 )
               },
               { 
                 key: 'total_value', 
                 header: 'Valor Total',
                 cell: (item) => (
-                  <div className="font-medium text-green-700">{formatCurrency(item.total_value)}</div>
+                  <div className="font-medium text-green-700">{formatCurrency(item.total_value || 0)}</div>
                 )
               },
               { 
@@ -319,7 +416,7 @@ const Inventory = () => {
                 key: 'status', 
                 header: 'Estado',
                 cell: (item) => (
-                  <Badge variant={getStatusVariant(item.status)}>
+                  <Badge variant={getStatusVariant(item.status || 'Normal')}>
                     {item.status}
                   </Badge>
                 )
@@ -342,6 +439,8 @@ const Inventory = () => {
                 )
               },
             ]}
+            loading={isLoading}
+            emptyState="No se encontraron artículos en el inventario"
           />
         </MotionContainer>
       </div>
