@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -16,7 +17,8 @@ import {
   ArrowUpDown,
   Download,
   DollarSign,
-  MapPin
+  MapPin,
+  X
 } from 'lucide-react';
 import {
   Select,
@@ -25,6 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 
 const initialInventoryItems = [
   { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000 },
@@ -45,12 +53,16 @@ const Inventory = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [inventoryItems, setInventoryItems] = useState(initialInventoryItems);
   const [filteredItems, setFilteredItems] = useState(initialInventoryItems);
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   
   const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
+  const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
+  const statuses = Array.from(new Set(inventoryItems.map(item => item.status)));
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -79,11 +91,19 @@ const Inventory = () => {
       filtered = filtered.filter(item => item.location === selectedLocation);
     }
     
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(item => item.category === selectedCategory);
+    }
+    
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(item => item.status === selectedStatus);
+    }
+    
     setFilteredItems(filtered);
     
     const total = filtered.reduce((sum, item) => sum + item.total_value, 0);
     setTotalInventoryValue(total);
-  }, [searchQuery, selectedLocation, inventoryItems]);
+  }, [searchQuery, selectedLocation, selectedCategory, selectedStatus, inventoryItems]);
 
   const handleAddItem = (newItem) => {
     const { delivery_time, ...itemWithoutDeliveryTime } = newItem;
@@ -113,6 +133,12 @@ const Inventory = () => {
       case 'Crítico': return 'destructive';
       default: return 'secondary';
     }
+  };
+
+  const resetFilters = () => {
+    setSelectedLocation('all');
+    setSelectedCategory('all');
+    setSelectedStatus('all');
   };
 
   const formatCurrency = (amount: number) => {
@@ -162,10 +188,60 @@ const Inventory = () => {
                 </Select>
               </div>
               
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtrar
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filtrar
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Filtros</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Filtra el inventario por categoría y estado
+                      </p>
+                    </div>
+                    <Separator />
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Categoría</label>
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas las categorías" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las categorías</SelectItem>
+                          {categories.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Estado</label>
+                      <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos los estados" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos los estados</SelectItem>
+                          {statuses.map(status => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
+                      <X className="h-4 w-4 mr-2" />
+                      Reiniciar filtros
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
               
               <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
