@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -19,6 +18,7 @@ import {
   Bell
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import AddUserDialog from '@/components/admin/AddUserDialog';
 
 // Mock data for users
 const users = [
@@ -77,6 +77,11 @@ const AdminUsers = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState(users);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [nextUserId, setNextUserId] = useState(7); // For mock data ID generation
+  
+  // Get unique locations for dropdown
+  const locations = Array.from(new Set(users.map(user => user.location)));
   
   useEffect(() => {
     // Check authentication
@@ -112,12 +117,23 @@ const AdminUsers = () => {
   }, [searchQuery]);
 
   const handleToggleAlerts = (userId: number) => {
-    setFilteredUsers(prevUsers => 
-      prevUsers.map(user => 
-        user.id === userId 
-          ? { ...user, receiveAlerts: !user.receiveAlerts } 
-          : user
-      )
+    const updatedUsers = users.map(user => 
+      user.id === userId 
+        ? { ...user, receiveAlerts: !user.receiveAlerts } 
+        : user
+    );
+    
+    // Update both users array and filtered users
+    Object.assign(users, updatedUsers);
+    setFilteredUsers(
+      searchQuery.trim() === '' 
+        ? updatedUsers 
+        : updatedUsers.filter(user => 
+            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.location.toLowerCase().includes(searchQuery.toLowerCase())
+          )
     );
     
     // Show toast notification
@@ -129,6 +145,44 @@ const AdminUsers = () => {
         description: `${user.name} ${newState ? 'recibirá' : 'no recibirá'} alertas de stock bajo`,
       });
     }
+  };
+
+  const handleAddUser = (userData: {
+    name: string;
+    email: string;
+    role: string;
+    location: string;
+    receiveAlerts: boolean;
+  }) => {
+    // Create new user with generated ID
+    const newUser = {
+      id: nextUserId,
+      ...userData
+    };
+    
+    // Add to users array
+    users.push(newUser);
+    
+    // Update filtered users
+    if (searchQuery.trim() === '') {
+      setFilteredUsers([...users]);
+    } else {
+      setFilteredUsers(users.filter(user => 
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.location.toLowerCase().includes(searchQuery.toLowerCase())
+      ));
+    }
+    
+    // Increment next ID
+    setNextUserId(nextUserId + 1);
+    
+    // Show success message
+    toast({
+      title: "Usuario añadido",
+      description: `${userData.name} ha sido añadido exitosamente.`
+    });
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -155,7 +209,7 @@ const AdminUsers = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button size="sm">
+              <Button size="sm" onClick={() => setIsAddUserDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir Usuario
               </Button>
@@ -238,9 +292,16 @@ const AdminUsers = () => {
           />
         </MotionContainer>
       </div>
+      
+      {/* Add User Dialog */}
+      <AddUserDialog 
+        open={isAddUserDialogOpen}
+        onOpenChange={setIsAddUserDialogOpen}
+        onAddUser={handleAddUser}
+        locations={locations}
+      />
     </Layout>
   );
 };
 
 export default AdminUsers;
-
