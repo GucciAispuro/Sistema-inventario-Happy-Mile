@@ -48,7 +48,7 @@ export function AppSidebar() {
     <Sidebar className={isMobile ? "z-50" : ""}>
       <SidebarHeader className="p-4">
         <MotionContainer className="flex items-center justify-center">
-          <div className="h-14 w-auto">
+          <div className="h-20 w-auto">
             <img 
               src="/lovable-uploads/2c5878e5-7b09-4745-a10d-490c059a167d.png" 
               alt="Happy Mile Logo" 
