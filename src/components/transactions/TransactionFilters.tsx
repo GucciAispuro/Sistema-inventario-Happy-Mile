@@ -57,8 +57,8 @@ const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
             {categories.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
+              <SelectItem key={category} value={category || "unknown"}>
+                {category || "Sin categoría"}
               </SelectItem>
             ))}
           </SelectContent>

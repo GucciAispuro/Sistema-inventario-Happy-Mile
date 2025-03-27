@@ -32,6 +32,7 @@ interface TransactionsTableProps {
 }
 
 const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, isLoading }) => {
+  console.log("Rendering TransactionsTable with", transactions.length, "transactions");
   return (
     <DataTable 
       data={transactions}

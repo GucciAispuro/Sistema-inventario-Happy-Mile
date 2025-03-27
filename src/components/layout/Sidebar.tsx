@@ -1,3 +1,4 @@
+
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -43,6 +44,9 @@ export function AppSidebar() {
     { icon: FileCheck2, label: 'Auditar', path: '/audit' },
   ];
 
+  // Add console.log to debug current location
+  console.log("Current location:", location.pathname);
+
   return (
     <Sidebar className={isMobile ? "z-50" : ""}>
       <SidebarHeader className="p-4">
@@ -69,6 +73,7 @@ export function AppSidebar() {
                 key={item.path}
                 to={item.path}
                 className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
+                onClick={() => console.log(`Clicked: ${item.label} - Path: ${item.path}`)}
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.label}</span>
@@ -88,6 +93,7 @@ export function AppSidebar() {
                 key={item.path}
                 to={item.path}
                 className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
+                onClick={() => console.log(`Clicked: ${item.label} - Path: ${item.path}`)}
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.label}</span>

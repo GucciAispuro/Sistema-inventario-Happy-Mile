@@ -30,31 +30,28 @@ type Transaction = {
 };
 
 const Transactions = () => {
+  console.log("Rendering Transactions page");
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterType, setFilterType] = useState('all');
 
-  // Check authentication
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate('/');
-      }
-    };
-    checkAuth();
-  }, [navigate]);
-
   // Query transactions from Supabase
   const { 
     data: transactions = [], 
     isLoading, 
-    error 
+    error,
+    refetch
   } = useQuery<Transaction[]>({
     queryKey: ['transactions', searchQuery, filterCategory, filterType],
     queryFn: async () => {
       try {
+        console.log("Fetching transactions with filters:", {
+          searchQuery,
+          filterCategory,
+          filterType
+        });
+
         let query = supabase.from('transactions').select('*');
 
         // Apply search filter
@@ -78,9 +75,10 @@ const Transactions = () => {
           query = query.eq('type', filterType);
         }
 
-        const { data, error } = await query;
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) {
+          console.error("Supabase query error:", error);
           toast({
             title: 'Error fetching transactions',
             description: error.message,
@@ -102,6 +100,7 @@ const Transactions = () => {
   // Handle errors from the query
   useEffect(() => {
     if (error) {
+      console.error("Query error in useEffect:", error);
       toast({
         title: 'Error loading transactions',
         description: error instanceof Error ? error.message : 'Unknown error occurred',
