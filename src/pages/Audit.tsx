@@ -75,17 +75,30 @@ interface AuditItem {
   system_quantity: number;
   actual_quantity: number | null;
   difference: number | null;
-  last_audit: string;
+  last_audit?: string; // Make this optional
+}
+
+interface DatabaseAuditItem {
+  id: string;
+  audit_id: string;
+  name: string;
+  category: string;
+  location: string;
+  system_quantity: number;
+  actual_quantity: number;
+  difference: number;
+  created_at: string | null;
 }
 
 interface AuditHistory {
   id: string;
   location: string;
   date: string;
-  user: string;
+  user_name: string; // Changed from 'user' to 'user_name' to match database
   items_count: number;
   discrepancies: number;
-  items?: AuditItem[];
+  items?: AuditItem[] | DatabaseAuditItem[];
+  created_at?: string;
 }
 
 const Audit = () => {
@@ -210,10 +223,9 @@ const Audit = () => {
       const auditData = {
         location: selectedLocation,
         date: new Date().toISOString().substring(0, 10),
-        user: userName,
+        user_name: userName, // Changed from 'user' to 'user_name'
         items_count: auditItems.length,
         discrepancies: auditItems.filter(item => item.difference !== 0).length,
-        items: auditItems
       };
       
       // Insert into Supabase
@@ -225,6 +237,30 @@ const Audit = () => {
       if (error) {
         console.error('Error saving audit:', error);
         throw error;
+      }
+      
+      // Now insert each audit item
+      if (data && data.length > 0) {
+        const auditId = data[0].id;
+        
+        const auditItemsData = auditItems.map(item => ({
+          audit_id: auditId,
+          name: item.name,
+          category: item.category,
+          location: item.location,
+          system_quantity: item.system_quantity,
+          actual_quantity: item.actual_quantity || 0,
+          difference: item.difference || 0
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from('audit_items')
+          .insert(auditItemsData);
+        
+        if (itemsError) {
+          console.error('Error saving audit items:', itemsError);
+          throw itemsError;
+        }
       }
       
       toast({
@@ -528,7 +564,7 @@ const Audit = () => {
               columns={[
                 { key: 'location', header: 'Ubicación' },
                 { key: 'date', header: 'Fecha' },
-                { key: 'user', header: 'Realizada por' },
+                { key: 'user_name', header: 'Realizada por' }, // Changed from 'user' to 'user_name'
                 { key: 'items_count', header: 'Artículos Auditados' },
                 { 
                   key: 'discrepancies', 
@@ -587,7 +623,7 @@ const Audit = () => {
                     <span className="font-medium">Fecha:</span> {selectedAudit.date}
                   </div>
                   <div>
-                    <span className="font-medium">Auditor:</span> {selectedAudit.user}
+                    <span className="font-medium">Auditor:</span> {selectedAudit.user_name}
                   </div>
                 </div>
               )}
