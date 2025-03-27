@@ -42,6 +42,8 @@ export const sendLowStockAlert = async (location: string, items: any[]): Promise
 
     const admin = getLocationAdmin(location);
     
+    console.log("Sending low stock alert email to:", admin.adminEmail, "for location:", location, "with items:", items.length);
+    
     const { data, error } = await supabase.functions.invoke('send-low-stock-alert', {
       body: {
         items,
@@ -98,16 +100,16 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
     
     // Extract unique locations
     const locations = Array.from(new Set(locationsData.map(item => item.location)));
+    console.log("Checking low stock for locations:", locations);
     
     // For each location, check for low stock items
     for (const location of locations) {
+      // Fixed query: Use numerical comparison instead of .raw
       const { data: items, error } = await supabase
         .from('inventory')
         .select('*')
         .eq('location', location)
-        // Fix: don't use .raw which is not supported in the type definition
-        // Instead, use a direct comparison in the query
-        .lt('quantity', 'min_stock');
+        .filter('quantity', 'lt', 'min_stock');
       
       if (error) {
         console.error(`Error al verificar stock bajo en ${location}:`, error);
@@ -115,6 +117,8 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
       }
       
       if (items && items.length > 0) {
+        console.log(`Found ${items.length} items with low stock in ${location}`);
+        
         // Add calculated status to each item
         const processedItems = items.map(item => ({
           ...item,
@@ -124,6 +128,8 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
         
         // Send alert for this location
         await sendLowStockAlert(location, processedItems);
+      } else {
+        console.log(`No items with low stock found in ${location}`);
       }
     }
   } catch (error) {

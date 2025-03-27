@@ -2,7 +2,14 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+// Check if API key is available
+if (!RESEND_API_KEY) {
+  console.error("RESEND_API_KEY is not set in environment variables!");
+}
+
+const resend = new Resend(RESEND_API_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,9 +80,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { items, location, adminEmail, adminName, baseUrl }: LowStockAlertRequest = await req.json();
+    console.log("Received low stock alert request");
+    
+    const requestBody = await req.json();
+    console.log("Request body:", JSON.stringify(requestBody));
+    
+    const { items, location, adminEmail, adminName, baseUrl }: LowStockAlertRequest = requestBody;
     
     if (!items || items.length === 0) {
+      console.error("No items provided in request");
       return new Response(
         JSON.stringify({ error: "No se proporcionaron artículos con stock bajo" }),
         {
@@ -84,6 +97,19 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+
+    if (!adminEmail) {
+      console.error("No admin email provided");
+      return new Response(
+        JSON.stringify({ error: "No se proporcionó email de administrador" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    console.log(`Sending alert to ${adminEmail} for ${location} with ${items.length} items`);
 
     const criticalItems = items.filter(item => item.status === 'Crítico' || item.status === 'Agotado');
     const lowItems = items.filter(item => item.status === 'Bajo');
@@ -140,6 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    console.log("Email sent successfully:", data);
     return new Response(
       JSON.stringify({ success: true, messageId: data.id }),
       {
