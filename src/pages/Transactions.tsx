@@ -146,6 +146,46 @@ const Transactions = () => {
         throw new Error(fetchError.message);
       }
       
+      // Find the corresponding inventory item
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('name', transactionData.item)
+        .eq('location', transactionData.location)
+        .single();
+      
+      if (inventoryError && inventoryError.code !== 'PGRST116') {
+        console.error("Error checking inventory for item:", inventoryError);
+        throw new Error(inventoryError.message);
+      }
+      
+      // Adjust inventory quantity based on transaction type
+      // If we're deleting an 'IN' transaction, we need to subtract the quantity
+      // If we're deleting an 'OUT' transaction, we need to add the quantity back
+      if (inventoryData) {
+        const adjustmentQuantity = transactionData.quantity;
+        let newQuantity = inventoryData.quantity;
+        
+        if (transactionData.type === 'IN') {
+          // If deleting an 'IN' transaction, subtract quantity
+          newQuantity = Math.max(0, newQuantity - adjustmentQuantity);
+        } else {
+          // If deleting an 'OUT' transaction, add quantity back
+          newQuantity = newQuantity + adjustmentQuantity;
+        }
+        
+        // Update inventory with adjusted quantity
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({ quantity: newQuantity })
+          .eq('id', inventoryData.id);
+        
+        if (updateError) {
+          console.error("Error updating inventory quantity:", updateError);
+          throw new Error(updateError.message);
+        }
+      }
+      
       // Delete the transaction
       const { error: deleteError } = await supabase
         .from('transactions')

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -149,6 +148,73 @@ const TransaccionesColaborador = () => {
         });
         setIsSubmitting(false);
         return;
+      }
+
+      // Update inventory based on transaction type
+      // First check if item exists in inventory for this location
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('name', selectedItem.name)
+        .eq('location', selectedLocation.name)
+        .single();
+
+      if (inventoryError && inventoryError.code !== 'PGRST116') {
+        console.error("Error checking inventory:", inventoryError);
+        toast({
+          title: "Error al verificar inventario",
+          description: inventoryError.message,
+          variant: "destructive"
+        });
+      }
+
+      if (inventoryData) {
+        // Item exists, update quantity
+        const newQuantity = values.type === 'IN' 
+          ? inventoryData.quantity + values.quantity
+          : Math.max(0, inventoryData.quantity - values.quantity);
+
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({ quantity: newQuantity })
+          .eq('id', inventoryData.id);
+
+        if (updateError) {
+          console.error("Error updating inventory:", updateError);
+          toast({
+            title: "Error al actualizar inventario",
+            description: updateError.message,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Item doesn't exist in this location, create it if it's an IN transaction
+        if (values.type === 'IN') {
+          const { error: insertError } = await supabase
+            .from('inventory')
+            .insert({
+              name: selectedItem.name,
+              category: selectedItem.category,
+              location: selectedLocation.name,
+              quantity: values.quantity
+            });
+
+          if (insertError) {
+            console.error("Error creating inventory item:", insertError);
+            toast({
+              title: "Error al crear item en inventario",
+              description: insertError.message,
+              variant: "destructive"
+            });
+          }
+        } else {
+          console.warn("Attempted to remove items from non-existent inventory entry");
+          toast({
+            title: "Advertencia",
+            description: "No existe inventario para este artículo en esta ubicación",
+            variant: "destructive"
+          });
+        }
       }
       
       // Show success message

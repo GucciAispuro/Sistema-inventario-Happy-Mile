@@ -22,10 +22,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 type Transaction = {
   id: string;
@@ -56,6 +54,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 }) => {
   const [selectedProof, setSelectedProof] = useState<Transaction | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const handleViewProof = (transaction: Transaction) => {
     console.log("Viewing proof for transaction:", transaction);
@@ -103,13 +102,10 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
   const handleDeleteConfirm = async () => {
     if (!deletingTransaction || !onDeleteTransaction) return;
     
+    setIsDeleting(true);
     try {
       await onDeleteTransaction(deletingTransaction.id);
       setDeletingTransaction(null);
-      toast({
-        title: 'Transacción eliminada',
-        description: 'La transacción ha sido eliminada exitosamente.'
-      });
     } catch (error) {
       console.error('Error deleting transaction:', error);
       toast({
@@ -117,6 +113,8 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
         description: 'No se pudo eliminar la transacción.',
         variant: 'destructive'
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
   
@@ -217,38 +215,16 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             key: 'actions',
             header: 'Acciones',
             cell: (transaction: Transaction) => (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 px-2 text-destructive hover:text-white hover:bg-destructive"
-                    onClick={() => setDeletingTransaction(transaction)}
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Eliminar
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar esta transacción?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta acción no se puede deshacer. Eliminará permanentemente la transacción
-                      {transaction.type === 'IN' 
-                        ? ' y ajustará el inventario reduciendo los artículos.' 
-                        : ' y ajustará el inventario aumentando los artículos.'}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setDeletingTransaction(null)}>
-                      Cancelar
-                    </AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteConfirm}>
-                      Eliminar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-2 text-destructive hover:text-white hover:bg-destructive"
+                onClick={() => setDeletingTransaction(transaction)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Eliminar
+              </Button>
             )
           }
         ]}
@@ -325,7 +301,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog 
-        open={!!deletingTransaction && !onDeleteTransaction} 
+        open={!!deletingTransaction} 
         onOpenChange={(open) => !open && setDeletingTransaction(null)}
       >
         <AlertDialogContent>
@@ -339,11 +315,11 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingTransaction(null)}>
+            <AlertDialogCancel onClick={() => setDeletingTransaction(null)} disabled={isDeleting}>
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
-              Eliminar
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
