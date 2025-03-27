@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -19,6 +20,17 @@ const Inventory = () => {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Define state for categories and location management
+  const [categories, setCategories] = useState<string[]>([
+    'Mobiliario', 
+    'Material de Oficina', 
+    'Electrónicos', 
+    'Piezas de Vehículo', 
+    'Equipo de Seguridad'
+  ]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [locations, setLocations] = useState<string[]>(['Almacén Central', 'Oficina Principal', 'Sucursal Norte']);
 
   useEffect(() => {
     // Check authentication
@@ -29,6 +41,7 @@ const Inventory = () => {
     }
     
     fetchInventory();
+    fetchLocations();
   }, [navigate, refreshTrigger]);
 
   const fetchInventory = async () => {
@@ -52,6 +65,16 @@ const Inventory = () => {
       
       console.log('Inventory data loaded:', data);
       setInventoryItems(data || []);
+      
+      // Extract unique categories from inventory items
+      if (data && data.length > 0) {
+        const uniqueCategories = [...new Set(data.map(item => item.category))];
+        setCategories(prev => {
+          const existingCategories = new Set(prev);
+          uniqueCategories.forEach(category => existingCategories.add(category));
+          return Array.from(existingCategories);
+        });
+      }
     } catch (err) {
       console.error('Error in fetchInventory:', err);
       toast({
@@ -61,6 +84,27 @@ const Inventory = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('name');
+      
+      if (error) {
+        console.error('Error fetching locations:', error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const locationNames = data.map(loc => loc.name);
+        console.log('Locations loaded:', locationNames);
+        setLocations(locationNames);
+      }
+    } catch (err) {
+      console.error('Error in fetchLocations:', err);
     }
   };
 
@@ -78,6 +122,20 @@ const Inventory = () => {
     
     // After adding an item, refresh the inventory
     refreshInventory();
+  };
+  
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+  };
+
+  const handleAddCategory = (category: string) => {
+    if (!categories.includes(category)) {
+      setCategories(prev => [...prev, category]);
+      toast({
+        title: 'Categoría añadida',
+        description: `La categoría "${category}" ha sido añadida correctamente`,
+      });
+    }
   };
 
   const filteredItems = inventoryItems.filter(item => {
@@ -134,11 +192,21 @@ const Inventory = () => {
             <TabsTrigger value="categories">Gestionar Categorías</TabsTrigger>
           </TabsList>
           <TabsContent value="categories">
-            <CategoryManagement />
+            <CategoryManagement 
+              categories={categories} 
+              selectedCategory={selectedCategory} 
+              onCategoryChange={handleCategoryChange}
+              onAddCategory={handleAddCategory}
+            />
           </TabsContent>
         </Tabs>
 
-        <AddItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} onAddItem={handleAddItem} />
+        <AddItemDialog 
+          open={isAddItemOpen} 
+          onOpenChange={setIsAddItemOpen} 
+          onAddItem={handleAddItem}
+          locations={locations} 
+        />
       </div>
     </Layout>
   );
