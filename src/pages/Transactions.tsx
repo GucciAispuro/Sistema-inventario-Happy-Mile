@@ -88,7 +88,6 @@ const Transactions = () => {
         }
 
         console.log('Transactions fetched:', data);
-        // Cast the response to our Transaction type to ensure compatibility
         return (data || []) as Transaction[];
       } catch (err) {
         console.error('Error in transaction query:', err);
