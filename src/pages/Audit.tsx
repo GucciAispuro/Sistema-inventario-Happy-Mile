@@ -12,11 +12,11 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { DataTable } from '@/components/ui/DataTable';
 import { Calendar, Plus, Minus, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import AuditDetail, { AuditItem } from '@/components/audit/AuditDetail';
+import AuditDetail, { AuditDetail as AuditDetailType, AuditItem } from '@/components/audit/AuditDetail';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +51,7 @@ type InventoryItem = {
 const Audit = () => {
   const [user, setUser] = useState('Admin User'); // Default user
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedAudit, setSelectedAudit] = useState<any>(null);
+  const [selectedAudit, setSelectedAudit] = useState<AuditDetailType | null>(null);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [isAuditItemsDialogOpen, setIsAuditItemsDialogOpen] = useState(false);
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
