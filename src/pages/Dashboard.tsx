@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -21,6 +20,17 @@ import {
   DollarSign
 } from 'lucide-react';
 
+interface InventoryItem {
+  id: string;
+  name: string;
+  location: string;
+  quantity: number;
+  category: string;
+  created_at: string;
+  cost?: number;
+  min_stock?: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,21 +47,17 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Check authentication
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuthenticated) {
       navigate('/');
       return;
     }
     
-    // Get user role
     const role = localStorage.getItem('userRole');
     setUserRole(role);
     
-    // Fetch dashboard data
     fetchDashboardData();
     
-    // Set up real-time subscription
     const channel = supabase
       .channel('dashboard-changes')
       .on(
@@ -74,7 +80,6 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Fetch low stock items
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
         .select('*');
@@ -89,7 +94,6 @@ const Dashboard = () => {
         return;
       }
       
-      // Fetch recent transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
@@ -101,39 +105,37 @@ const Dashboard = () => {
         return;
       }
       
-      // Calculate total inventory value and find low stock items
       let totalValue = 0;
       const lowItems = [];
       
       if (inventoryData) {
-        // Get unique locations count
         const locations = new Set(inventoryData.map(item => item.location)).size;
         
-        // Calculate total items and value
         const totalItems = inventoryData.length;
         
-        for (const item of inventoryData) {
-          // Calculate item total value (assuming cost field exists)
-          const itemTotalValue = (item.cost || 0) * item.quantity;
+        for (const item of inventoryData as InventoryItem[]) {
+          const itemCost = item.cost || 0;
+          
+          const itemTotalValue = itemCost * item.quantity;
           totalValue += itemTotalValue;
           
-          // Check if low stock
-          const isLowStock = item.quantity < (item.min_stock || 5);
+          const minStock = item.min_stock || 5;
+          
+          const isLowStock = item.quantity < minStock;
           if (isLowStock) {
             lowItems.push({
               id: item.id,
               name: item.name,
               location: item.location,
               stock: item.quantity,
-              min: item.min_stock || 5,
-              status: item.quantity <= (item.min_stock || 5) / 2 ? 'Crítico' : 'Bajo',
-              cost: item.cost || 0,
-              total: (item.cost || 0) * item.quantity
+              min: minStock,
+              status: item.quantity <= minStock / 2 ? 'Crítico' : 'Bajo',
+              cost: itemCost,
+              total: itemCost * item.quantity
             });
           }
         }
         
-        // Update stats
         setStats({
           totalItems,
           locations,
@@ -142,7 +144,6 @@ const Dashboard = () => {
         });
       }
       
-      // Process and format recent transactions
       const formattedTransactions = transactionsData?.map(transaction => ({
         id: transaction.id,
         item: transaction.item,
@@ -153,7 +154,6 @@ const Dashboard = () => {
         user: transaction.user_name
       })) || [];
       
-      // Update state with fetched data
       setTotalInventoryValue(totalValue);
       setLowStockItems(lowItems);
       setRecentTransactions(formattedTransactions);
@@ -164,7 +164,6 @@ const Dashboard = () => {
     }
   };
   
-  // Find the function that defines badge variants and update it
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'Bajo': return 'destructive';
@@ -183,7 +182,6 @@ const Dashboard = () => {
   return (
     <Layout title="Dashboard">
       <div className="space-y-8">
-        {/* Stats Overview */}
         <MotionContainer>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatsCard 
@@ -213,7 +211,6 @@ const Dashboard = () => {
           </div>
         </MotionContainer>
         
-        {/* Low Stock Items */}
         <MotionContainer delay={100} className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-medium">Artículos con Bajo Stock</h2>
@@ -281,7 +278,6 @@ const Dashboard = () => {
           />
         </MotionContainer>
         
-        {/* Recent Transactions */}
         <MotionContainer delay={200} className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-medium">Transacciones Recientes</h2>
