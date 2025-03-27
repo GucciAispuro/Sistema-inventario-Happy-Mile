@@ -42,7 +42,12 @@ export const sendLowStockAlert = async (location: string, items: any[]): Promise
 
     const admin = getLocationAdmin(location);
     
-    console.log("Sending low stock alert email to:", admin.adminEmail, "for location:", location, "with items:", items.length);
+    console.log("Sending low stock alert email details:", {
+      location,
+      adminEmail: admin.adminEmail,
+      adminName: admin.adminName,
+      itemsCount: items.length
+    });
     
     const { data, error } = await supabase.functions.invoke('send-low-stock-alert', {
       body: {
@@ -55,10 +60,14 @@ export const sendLowStockAlert = async (location: string, items: any[]): Promise
     });
 
     if (error) {
-      console.error("Error al enviar alerta de stock bajo:", error);
+      console.error("Detailed error sending low stock alert:", {
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error
+      });
       toast({
         title: "Error al enviar alerta",
-        description: `No se pudo enviar la alerta para ${location}`,
+        description: `No se pudo enviar la alerta para ${location}. Detalles: ${error.message}`,
         variant: "destructive"
       });
       return false;
@@ -71,10 +80,13 @@ export const sendLowStockAlert = async (location: string, items: any[]): Promise
     });
     return true;
   } catch (error) {
-    console.error("Error al procesar alerta de stock bajo:", error);
+    console.error("Error al procesar alerta de stock bajo:", {
+      errorMessage: error.message,
+      errorStack: error.stack
+    });
     toast({
       title: "Error en la notificación",
-      description: "Ocurrió un error al procesar la alerta de stock bajo",
+      description: `Ocurrió un error al procesar la alerta de stock bajo: ${error.message}`,
       variant: "destructive"
     });
     return false;
