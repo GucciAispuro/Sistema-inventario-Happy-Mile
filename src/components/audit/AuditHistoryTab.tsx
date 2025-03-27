@@ -77,9 +77,11 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
     
     setIsDeleting(true);
     try {
+      console.log("Starting to delete audit:", deletingAudit.id);
       let auditItemsToRevert = deletingAudit.items;
       
       if (!auditItemsToRevert || auditItemsToRevert.length === 0) {
+        console.log("Fetching audit items for deletion");
         const { data, error } = await supabase
           .from('audit_items')
           .select('*')
@@ -91,11 +93,14 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
         }
         
         auditItemsToRevert = data;
+        console.log("Fetched audit items:", auditItemsToRevert);
       }
       
       if (auditItemsToRevert && auditItemsToRevert.length > 0) {
         // Revert inventory quantities for each audit item
         for (const item of auditItemsToRevert) {
+          console.log(`Reverting inventory for: ${item.name} at ${item.location}, restoring to system quantity: ${item.system_quantity}`);
+          
           const { data: inventoryData, error: inventoryError } = await supabase
             .from('inventory')
             .select('*')
@@ -109,23 +114,32 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
           }
           
           if (inventoryData) {
+            console.log(`Found inventory item with ID ${inventoryData.id}, current quantity: ${inventoryData.quantity}`);
+            
             // Calculate original quantity before the audit was made
             const originalQuantity = item.system_quantity;
+            console.log(`Restoring to original system quantity: ${originalQuantity}`);
             
             // Update inventory back to original quantity
-            const { error: updateError } = await supabase
+            const { data: updateData, error: updateError } = await supabase
               .from('inventory')
               .update({ quantity: originalQuantity })
-              .eq('id', inventoryData.id);
+              .eq('id', inventoryData.id)
+              .select();
             
             if (updateError) {
               console.error('Error reverting inventory quantity:', updateError);
+            } else {
+              console.log(`Successfully reverted inventory to quantity: ${originalQuantity}`, updateData);
             }
+          } else {
+            console.log(`No inventory item found for ${item.name} at ${item.location}, nothing to revert`);
           }
         }
       }
       
       // Delete the audit items
+      console.log("Deleting audit items");
       const { error: deleteItemsError } = await supabase
         .from('audit_items')
         .delete()
@@ -137,6 +151,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       }
       
       // Delete the audit itself
+      console.log("Deleting audit");
       const { error: deleteAuditError } = await supabase
         .from('audits')
         .delete()

@@ -97,6 +97,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
         discrepancies: auditItems.filter(item => item.difference !== 0).length,
       };
       
+      console.log("Saving audit data:", auditData);
+      
       const { data, error } = await supabase
         .from('audits')
         .insert(auditData)
@@ -109,6 +111,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
       
       if (data && data.length > 0) {
         const auditId = data[0].id;
+        console.log("Audit saved with ID:", auditId);
         
         const auditItemsData = auditItems.map(item => ({
           audit_id: auditId,
@@ -119,6 +122,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
           actual_quantity: item.actual_quantity || 0,
           difference: item.difference || 0
         }));
+        
+        console.log("Saving audit items:", auditItemsData);
         
         const { error: itemsError } = await supabase
           .from('audit_items')
@@ -132,6 +137,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
         // Update inventory quantities based on audit results
         for (const item of auditItems) {
           if (item.actual_quantity !== null) {
+            console.log(`Updating inventory for: ${item.name} at ${item.location}, setting quantity to ${item.actual_quantity}`);
+            
             // Find inventory item in database
             const { data: inventoryData, error: inventoryError } = await supabase
               .from('inventory')
@@ -140,34 +147,47 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
               .eq('location', item.location)
               .single();
               
-            if (inventoryError && inventoryError.code !== 'PGRST116') {
-              console.error('Error finding inventory item:', inventoryError);
-              continue;
+            if (inventoryError) {
+              if (inventoryError.code === 'PGRST116') {
+                console.log(`Item ${item.name} not found in inventory, will create new entry`);
+              } else {
+                console.error('Error finding inventory item:', inventoryError);
+                continue;
+              }
             }
             
             if (inventoryData) {
+              console.log(`Found existing inventory item with ID ${inventoryData.id}, current quantity: ${inventoryData.quantity}`);
+              
               // Update inventory with the actual quantity from audit
-              const { error: updateError } = await supabase
+              const { data: updateData, error: updateError } = await supabase
                 .from('inventory')
                 .update({ quantity: item.actual_quantity })
-                .eq('id', inventoryData.id);
+                .eq('id', inventoryData.id)
+                .select();
                 
               if (updateError) {
                 console.error('Error updating inventory quantity:', updateError);
+              } else {
+                console.log(`Updated inventory item to quantity: ${item.actual_quantity}`, updateData);
               }
             } else {
               // If item doesn't exist in inventory, create it
-              const { error: insertError } = await supabase
+              console.log(`Creating new inventory item for ${item.name}`);
+              const { data: insertData, error: insertError } = await supabase
                 .from('inventory')
                 .insert({
                   name: item.name,
                   category: item.category,
                   location: item.location,
                   quantity: item.actual_quantity
-                });
+                })
+                .select();
                 
               if (insertError) {
                 console.error('Error creating inventory item:', insertError);
+              } else {
+                console.log(`Created new inventory item with ID: ${insertData?.[0]?.id}`);
               }
             }
           }

@@ -1,342 +1,145 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { DataTable } from '@/components/ui/DataTable';
-import MotionContainer from '@/components/ui/MotionContainer';
-import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Search, Plus, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
-import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
-import { 
-  Plus, 
-  Search,
-  Filter,
-  ArrowUpDown,
-  Download,
-  DollarSign,
-  MapPin,
-  X
-} from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
-
-const initialInventoryItems = [
-  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', location: 'CDMX', quantity: 15, min_stock: 5, status: 'Normal', cost: 1200, total_value: 18000 },
-  { id: 2, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'CDMX', quantity: 8, min_stock: 10, status: 'Bajo', cost: 120, total_value: 960 },
-  { id: 3, name: 'Laptop', category: 'Electrónicos', location: 'CDMX', quantity: 12, min_stock: 3, status: 'Normal', cost: 15000, total_value: 180000 },
-  { id: 4, name: 'Silla de Oficina', category: 'Mobiliario', location: 'Monterrey', quantity: 7, min_stock: 5, status: 'Normal', cost: 1200, total_value: 8400 },
-  { id: 5, name: 'Papel para Impresora', category: 'Material de Oficina', location: 'Monterrey', quantity: 3, min_stock: 10, status: 'Crítico', cost: 120, total_value: 360 },
-  { id: 6, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', location: 'Guadalajara', quantity: 5, min_stock: 8, status: 'Bajo', cost: 2500, total_value: 12500 },
-  { id: 7, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', location: 'Culiacán', quantity: 4, min_stock: 5, status: 'Bajo', cost: 350, total_value: 1400 },
-  { id: 8, name: 'Tóner para Impresora', category: 'Material de Oficina', location: 'Guadalajara', quantity: 9, min_stock: 2, status: 'Normal', cost: 800, total_value: 7200 },
-  { id: 9, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', location: 'CDMX', quantity: 12, min_stock: 5, status: 'Normal', cost: 650, total_value: 7800 },
-  { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', quantity: 6, min_stock: 3, status: 'Normal', cost: 450, total_value: 2700 },
-];
+import CategoryManagement from '@/components/inventory/CategoryManagement';
 
 const Inventory = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [inventoryItems, setInventoryItems] = useState(initialInventoryItems);
-  const [filteredItems, setFilteredItems] = useState(initialInventoryItems);
-  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
-  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
-  
-  const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
-  const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
-  const statuses = Array.from(new Set(inventoryItems.map(item => item.status)));
-  
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   useEffect(() => {
+    // Check authentication
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuthenticated) {
       navigate('/');
       return;
     }
     
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
-  }, [navigate]);
-  
-  useEffect(() => {
-    let filtered = inventoryItems;
-    
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(item => 
-        item.name.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
-        item.location.toLowerCase().includes(query)
-      );
-    }
-    
-    if (selectedLocation !== 'all') {
-      filtered = filtered.filter(item => item.location === selectedLocation);
-    }
-    
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => item.category === selectedCategory);
-    }
-    
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(item => item.status === selectedStatus);
-    }
-    
-    setFilteredItems(filtered);
-    
-    const total = filtered.reduce((sum, item) => sum + item.total_value, 0);
-    setTotalInventoryValue(total);
-  }, [searchQuery, selectedLocation, selectedCategory, selectedStatus, inventoryItems]);
+    fetchInventory();
+  }, [navigate, refreshTrigger]);
 
-  const handleAddItem = (newItem) => {
-    const { delivery_time, ...itemWithoutDeliveryTime } = newItem;
-    
-    setInventoryItems([...inventoryItems, itemWithoutDeliveryTime]);
-    
+  const fetchInventory = async () => {
+    setLoading(true);
+    console.log('Fetching inventory data...');
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching inventory:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo cargar el inventario',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      console.log('Inventory data loaded:', data);
+      setInventoryItems(data || []);
+    } catch (err) {
+      console.error('Error in fetchInventory:', err);
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error al cargar el inventario',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshInventory = () => {
+    console.log('Manually refreshing inventory');
+    setRefreshTrigger(prev => prev + 1);
     toast({
-      title: "Artículo añadido",
-      description: `${newItem.name} ha sido añadido al inventario`,
+      title: 'Actualizando',
+      description: 'Actualizando datos del inventario',
     });
   };
 
-  const handleExport = () => {
-    const dataToExport = formatInventoryForExport(filteredItems);
-    const timestamp = new Date().toISOString().split('T')[0];
-    exportToExcel(dataToExport, `inventario-${timestamp}`, 'Inventario');
+  const handleAddItem = async (newItem) => {
+    setIsAddItemOpen(false);
     
-    toast({
-      title: "Exportación exitosa",
-      description: `Se ha exportado el inventario a Excel`,
-    });
+    // After adding an item, refresh the inventory
+    refreshInventory();
   };
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'Bajo': return 'destructive';
-      case 'Crítico': return 'destructive';
-      default: return 'secondary';
-    }
-  };
-
-  const resetFilters = () => {
-    setSelectedLocation('all');
-    setSelectedCategory('all');
-    setSelectedStatus('all');
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(amount);
-  };
+  const filteredItems = inventoryItems.filter(item => {
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query) ||
+      item.location.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <Layout title="Inventario">
-      <div className="space-y-6">
-        <MotionContainer>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar artículos, categorías, ubicaciones..." 
-                className="pl-9 subtle-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="bg-secondary/80 px-3 py-1.5 rounded-md flex items-center">
-                <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                <span className="text-sm font-medium">
-                  Valor Total: {formatCurrency(totalInventoryValue)}
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                  <SelectTrigger className="w-[180px]">
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filtrar por ubicación" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                    {locations.map(location => (
-                      <SelectItem key={location} value={location}>{location}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filtrar
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium leading-none">Filtros</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Filtra el inventario por categoría y estado
-                      </p>
-                    </div>
-                    <Separator />
-                    
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium">Categoría</label>
-                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Todas las categorías" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas las categorías</SelectItem>
-                          {categories.map(category => (
-                            <SelectItem key={category} value={category}>{category}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium">Estado</label>
-                      <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Todos los estados" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos los estados</SelectItem>
-                          {statuses.map(status => (
-                            <SelectItem key={status} value={status}>{status}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <Button variant="outline" size="sm" onClick={resetFilters}>
-                      <X className="h-4 w-4 mr-2" />
-                      Reiniciar filtros
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-              
-              <Button size="sm" onClick={() => setShowAddItemDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Añadir Artículo
-              </Button>
-            </div>
+      <div className="flex flex-col space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 sm:space-x-2">
+          <div className="relative max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar por nombre, categoría o ubicación..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </MotionContainer>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={refreshInventory}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualizar
+            </Button>
+            <Button onClick={() => setIsAddItemOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Item
+            </Button>
+          </div>
+        </div>
         
-        <MotionContainer delay={100}>
-          <DataTable 
-            data={filteredItems}
-            columns={[
-              { key: 'name', header: 'Nombre del Artículo' },
-              { key: 'category', header: 'Categoría' },
-              { 
-                key: 'location', 
-                header: 'Ubicación',
-                cell: (item) => (
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1 text-primary" />
-                    {item.location}
-                  </div>
-                )
-              },
-              { 
-                key: 'quantity', 
-                header: 'Cantidad',
-                cell: (item) => (
-                  <div className="font-medium">{item.quantity}</div>
-                )
-              },
-              { 
-                key: 'cost', 
-                header: 'Costo Unitario',
-                cell: (item) => (
-                  <div className="font-medium text-green-700">{formatCurrency(item.cost)}</div>
-                )
-              },
-              { 
-                key: 'total_value', 
-                header: 'Valor Total',
-                cell: (item) => (
-                  <div className="font-medium text-green-700">{formatCurrency(item.total_value)}</div>
-                )
-              },
-              { 
-                key: 'min_stock', 
-                header: 'Mín. Requerido',
-                cell: (item) => (
-                  <div className="text-muted-foreground">{item.min_stock}</div>
-                )
-              },
-              { 
-                key: 'status', 
-                header: 'Estado',
-                cell: (item) => (
-                  <Badge variant={getStatusVariant(item.status)}>
-                    {item.status}
-                  </Badge>
-                )
-              },
-              { 
-                key: 'actions', 
-                header: '',
-                cell: (item) => (
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <ArrowUpDown className="h-3 w-3 mr-1" />
-                      Mover
-                    </Button>
-                    {userRole === 'admin' && (
-                      <Button variant="ghost" size="sm">
-                        Editar
-                      </Button>
-                    )}
-                  </div>
-                )
-              },
-            ]}
-          />
-        </MotionContainer>
-      </div>
+        <DataTable
+          data={filteredItems}
+          loading={loading}
+          columns={[
+            { key: 'name', header: 'Nombre' },
+            { key: 'category', header: 'Categoría' },
+            { key: 'location', header: 'Ubicación' },
+            { key: 'quantity', header: 'Cantidad' },
+          ]}
+          emptyState="No hay items en el inventario"
+        />
 
-      <AddItemDialog
-        open={showAddItemDialog}
-        onOpenChange={setShowAddItemDialog}
-        locations={locations}
-        onAddItem={handleAddItem}
-      />
+        <Tabs defaultValue="categories" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="categories">Gestionar Categorías</TabsTrigger>
+          </TabsList>
+          <TabsContent value="categories">
+            <CategoryManagement />
+          </TabsContent>
+        </Tabs>
+
+        <AddItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} onAddItem={handleAddItem} />
+      </div>
     </Layout>
   );
 };
