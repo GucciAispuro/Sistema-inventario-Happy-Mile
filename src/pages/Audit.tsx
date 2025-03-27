@@ -14,15 +14,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { DataTable } from '@/components/ui/DataTable';
-import { Calendar, Plus, Minus, ChevronsUpDown } from 'lucide-react';
+import { Calendar, Plus, Minus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import AuditDetail, { AuditDetail as AuditDetailType, AuditItem } from '@/components/audit/AuditDetail';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Type definitions
 type AuditHistory = {
@@ -52,6 +53,7 @@ const Audit = () => {
   const [user, setUser] = useState('Admin User'); // Default user
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState<AuditDetailType | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [isAuditItemsDialogOpen, setIsAuditItemsDialogOpen] = useState(false);
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
@@ -152,6 +154,10 @@ const Audit = () => {
     }
   });
 
+  const handleOpenAuditModal = () => {
+    setIsAuditModalOpen(true);
+  };
+
   const handleLocationSelect = (location: string) => {
     setSelectedLocation(location);
     
@@ -167,6 +173,7 @@ const Audit = () => {
     }));
     
     setAuditItems(items);
+    setIsAuditModalOpen(false);
     setIsAuditItemsDialogOpen(true);
   };
 
@@ -322,24 +329,9 @@ const Audit = () => {
         <MotionContainer>
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Auditoría de Inventario</h1>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="w-40">
-                  Nueva Auditoría
-                  <ChevronsUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {locations.map((location) => (
-                  <DropdownMenuItem 
-                    key={location.id}
-                    onClick={() => handleLocationSelect(location.name)}
-                  >
-                    {location.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button onClick={handleOpenAuditModal}>
+              Nueva Auditoría
+            </Button>
           </div>
         </MotionContainer>
         
@@ -399,6 +391,38 @@ const Audit = () => {
         </MotionContainer>
       </div>
       
+      {/* Location Selection Modal */}
+      <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Seleccionar Ubicación para Auditoría</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Select onValueChange={handleLocationSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar ubicación" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.name}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAuditModalOpen(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Audit Items Dialog */}
       <Dialog open={isAuditItemsDialogOpen} onOpenChange={setIsAuditItemsDialogOpen}>
         <DialogContent className="sm:max-w-4xl">
