@@ -152,4 +152,3 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, open, onOpenChange }) 
 };
 
 export default AuditDetail;
-// Remove the duplicate export type declaration that was causing the conflict
