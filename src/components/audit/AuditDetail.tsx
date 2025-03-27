@@ -40,7 +40,7 @@ interface AuditDetailProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const AuditDetail: React.FC<AuditDetailProps> = ({ audit, open, onOpenChange }) => {
+const AuditDetailComponent: React.FC<AuditDetailProps> = ({ audit, open, onOpenChange }) => {
   if (!audit) return null;
   
   return (
@@ -151,4 +151,4 @@ const AuditDetail: React.FC<AuditDetailProps> = ({ audit, open, onOpenChange }) 
   );
 };
 
-export default AuditDetail;
+export default AuditDetailComponent;

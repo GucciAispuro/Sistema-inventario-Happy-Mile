@@ -16,7 +16,7 @@ import { toast } from '@/components/ui/use-toast';
 import { DataTable } from '@/components/ui/DataTable';
 import { Calendar, Plus, Minus, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import AuditDetail, { AuditDetail as AuditDetailType, AuditItem } from '@/components/audit/AuditDetail';
+import AuditDetail, { AuditItem } from '@/components/audit/AuditDetail';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,15 +35,6 @@ type AuditHistory = {
   created_at?: string;
 };
 
-type SavedAudit = {
-  location: string;
-  date: string;
-  user_name: string;
-  items_count: number;
-  discrepancies: number;
-  items: AuditItem[];
-};
-
 type Location = {
   id: string;
   name: string;
@@ -59,13 +50,10 @@ type InventoryItem = {
 
 const Audit = () => {
   const [user, setUser] = useState('Admin User'); // Default user
-  const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedAudit, setSelectedAudit] = useState<AuditDetailType | null>(null);
+  const [selectedAudit, setSelectedAudit] = useState<any>(null);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [isAuditItemsDialogOpen, setIsAuditItemsDialogOpen] = useState(false);
-  
-  // Define auditItems here, before it's used
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
 
   // Fetch locations
@@ -217,25 +205,15 @@ const Audit = () => {
       const itemsWithDiscrepancies = auditItems.length;
       const discrepancyCount = getDiscrepancyCount();
 
-      // Audit data to save
-      const auditData: SavedAudit = {
-        location: selectedLocation,
-        date: new Date().toISOString().split('T')[0],
-        user_name: user,
-        items_count: itemsWithDiscrepancies,
-        discrepancies: discrepancyCount,
-        items: auditItems
-      };
-
       // Insert audit record
       const { data: auditRecord, error: auditError } = await supabase
         .from('audits')
         .insert({
-          location: auditData.location,
-          date: auditData.date,
-          user_name: auditData.user_name,
-          items_count: auditData.items_count,
-          discrepancies: auditData.discrepancies
+          location: selectedLocation,
+          date: new Date().toISOString().split('T')[0],
+          user_name: user,
+          items_count: itemsWithDiscrepancies,
+          discrepancies: discrepancyCount
         })
         .select()
         .single();
@@ -245,7 +223,7 @@ const Audit = () => {
       }
 
       // Insert audit items with correct properties
-      const auditItemsData = auditData.items.map(item => ({
+      const auditItemsData = auditItems.map(item => ({
         audit_id: auditRecord.id,
         id: item.id,
         name: item.name,
