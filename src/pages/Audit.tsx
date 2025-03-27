@@ -55,7 +55,7 @@ const Audit = () => {
   const [selectedAudit, setSelectedAudit] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   
-  // Fetch locations
+  // Fetch locations from the locations table in Supabase
   const { 
     data: locations = [], 
     isLoading: isLoadingLocations 
@@ -164,6 +164,8 @@ const Audit = () => {
       }));
       
       setAuditItems(items);
+    } else {
+      setAuditItems([]);
     }
   }, [inventoryItems]);
 
@@ -380,17 +382,23 @@ const Audit = () => {
                       <div className="flex items-center">
                         <MapPin className="mr-2 h-4 w-4" />
                         {selectedLocation 
-                          ? locations.find(loc => loc.name === selectedLocation)?.name || 'Seleccionar ubicación'
+                          ? selectedLocation 
                           : 'Seleccionar ubicación'
                         }
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem key={location.id} value={location.name}>
-                          {location.name}
-                        </SelectItem>
-                      ))}
+                      {locations.length > 0 ? (
+                        locations.map((location) => (
+                          <SelectItem key={location.id} value={location.name}>
+                            {location.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="p-2 text-center text-muted-foreground">
+                          {isLoadingLocations ? 'Cargando ubicaciones...' : 'No hay ubicaciones disponibles'}
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
