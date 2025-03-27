@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -24,7 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Define user type
 interface User {
-  id: number | string;
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -66,14 +65,19 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
+      console.log("Fetching users from Supabase...");
+      
       // Fetch users from Supabase
       const { data, error } = await supabase
         .from('users')
         .select('*');
       
       if (error) {
+        console.error('Error fetching users:', error);
         throw error;
       }
+      
+      console.log("Users fetched successfully:", data);
       
       if (data) {
         // Transform data to match our User interface
@@ -116,13 +120,15 @@ const AdminUsers = () => {
     }
   }, [searchQuery, users]);
 
-  const handleToggleAlerts = async (userId: number | string) => {
+  const handleToggleAlerts = async (userId: string) => {
     try {
       // Find the user to toggle
       const user = users.find(u => u.id === userId);
       if (!user) return;
       
       const newAlertsValue = !user.receiveAlerts;
+      
+      console.log(`Toggling alerts for user ${userId} to ${newAlertsValue}`);
       
       // Update the user in Supabase
       const { error } = await supabase
@@ -131,8 +137,11 @@ const AdminUsers = () => {
         .eq('id', userId);
       
       if (error) {
+        console.error('Error toggling alerts:', error);
         throw error;
       }
+      
+      console.log(`Successfully updated receive_alerts to ${newAlertsValue} for user ${userId}`);
       
       // Update local state
       const updatedUsers = users.map(u => 
@@ -177,57 +186,17 @@ const AdminUsers = () => {
     location: string;
     receiveAlerts: boolean;
   }) => {
+    console.log("handleAddUser called with:", userData);
+    
     try {
-      // Insert user into Supabase
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-          location: userData.location,
-          receive_alerts: userData.receiveAlerts
-        })
-        .select();
+      // We'll fetch the newly inserted users to get the complete data with IDs
+      await fetchUsers();
       
-      if (error) {
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-        // Add new user to state
-        const newUser = {
-          id: data[0].id,
-          name: data[0].name,
-          email: data[0].email,
-          role: data[0].role,
-          location: data[0].location,
-          receiveAlerts: data[0].receive_alerts
-        };
-        
-        const updatedUsers = [...users, newUser];
-        setUsers(updatedUsers);
-        
-        // Update filtered users if needed
-        if (searchQuery.trim() === '') {
-          setFilteredUsers(updatedUsers);
-        } else {
-          // Re-apply filter
-          const query = searchQuery.toLowerCase();
-          setFilteredUsers(updatedUsers.filter(user => 
-            user.name.toLowerCase().includes(query) ||
-            user.email.toLowerCase().includes(query) ||
-            user.role.toLowerCase().includes(query) ||
-            user.location.toLowerCase().includes(query)
-          ));
-        }
-        
-        // Show success message
-        toast({
-          title: "Usuario añadido",
-          description: `${userData.name} ha sido añadido exitosamente.`
-        });
-      }
+      // Show success message
+      toast({
+        title: "Usuario añadido",
+        description: `${userData.name} ha sido añadido exitosamente.`
+      });
     } catch (error) {
       console.error('Error adding user:', error);
       toast({

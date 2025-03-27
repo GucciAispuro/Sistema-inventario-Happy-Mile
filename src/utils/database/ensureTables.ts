@@ -6,29 +6,16 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const ensureTables = async () => {
   try {
-    // Check if users table exists
-    const { data: tables, error: tablesError } = await supabase
-      .from('pg_tables')
-      .select('tablename')
-      .eq('schemaname', 'public');
+    // Check if users table exists by querying a single row
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .limit(1);
     
-    if (tablesError) {
-      console.error('Error checking tables:', tablesError);
-      return;
-    }
-    
-    const userTableExists = tables?.some(t => t.tablename === 'users');
-    
-    if (!userTableExists) {
-      console.log('Creating users table...');
-      // Create users table if it doesn't exist
-      const { error } = await supabase.rpc('create_users_table');
-      
-      if (error) {
-        console.error('Error creating users table:', error);
-      } else {
-        console.log('Users table created successfully');
-      }
+    if (error) {
+      console.error('Error checking users table:', error);
+    } else {
+      console.log('Users table exists and is accessible');
     }
   } catch (error) {
     console.error('Error ensuring tables exist:', error);

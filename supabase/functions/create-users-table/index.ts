@@ -32,25 +32,28 @@ serve(async (req) => {
     // Create a Supabase client with the service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Create the users table if it doesn't exist
-    const { error } = await supabase.rpc('create_users_table');
+    // Check if the users table exists by querying it
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .limit(1);
 
     if (error) {
       throw error;
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Users table created successfully' }),
+      JSON.stringify({ success: true, message: 'Users table exists and is accessible' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
   } catch (error) {
-    console.error('Error creating users table:', error);
+    console.error('Error checking users table:', error);
     return new Response(
       JSON.stringify({
-        error: error.message || 'An error occurred while creating the users table',
+        error: error.message || 'An error occurred while checking the users table',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

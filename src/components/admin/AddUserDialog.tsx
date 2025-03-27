@@ -74,7 +74,7 @@ const AddUserDialog = ({
     setIsSubmitting(true);
     
     try {
-      // Save user to Supabase
+      // Insert the user directly into the Supabase table
       const { data, error } = await supabase
         .from('users')
         .insert({
@@ -87,8 +87,11 @@ const AddUserDialog = ({
         .select();
       
       if (error) {
+        console.error("Supabase insert error:", error);
         throw error;
       }
+      
+      console.log("User created successfully:", data);
       
       // Call the parent component's onAddUser function with the user data
       onAddUser({
@@ -106,15 +109,31 @@ const AddUserDialog = ({
       setLocation(locations[0] || 'CDMX');
       setReceiveAlerts(false);
       
+      // Show success toast
+      toast({
+        title: "Usuario creado",
+        description: "El usuario ha sido creado exitosamente",
+      });
+      
       // Close dialog
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding user:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el usuario. Intente de nuevo.",
-        variant: "destructive"
-      });
+      
+      // Check for duplicate email error
+      if (error.code === '23505') {
+        toast({
+          title: "Error",
+          description: "Este correo electrónico ya está registrado",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo agregar el usuario. Intente de nuevo.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
