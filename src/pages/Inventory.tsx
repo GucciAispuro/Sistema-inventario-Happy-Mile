@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -11,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
 import EditItemDialog from '@/components/inventory/EditItemDialog';
 import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
+import { checkAndAlertLowStock } from '@/utils/inventory/lowStockAlert';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, 
@@ -20,7 +20,8 @@ import {
   Download,
   DollarSign,
   MapPin,
-  X
+  X,
+  BellRing
 } from 'lucide-react';
 import {
   Select,
@@ -168,6 +169,15 @@ const Inventory = () => {
     setTotalInventoryValue(total);
   }, [searchQuery, selectedLocation, selectedCategory, selectedStatus, inventoryItems]);
 
+  useEffect(() => {
+    if (!isLoading && inventoryItems && inventoryItems.length > 0) {
+      const hasLowStockItems = inventoryItems.some(item => item.quantity < item.min_stock);
+      if (hasLowStockItems) {
+        checkAndAlertLowStock();
+      }
+    }
+  }, [inventoryItems, isLoading]);
+
   const handleAddItem = async (newItem) => {
     try {
       const { 
@@ -256,6 +266,23 @@ const Inventory = () => {
       title: "Exportación exitosa",
       description: `Se ha exportado el inventario a Excel`,
     });
+  };
+
+  const handleSendLowStockAlerts = async () => {
+    try {
+      await checkAndAlertLowStock();
+      toast({
+        title: "Verificación iniciada",
+        description: "Se están revisando artículos con stock bajo y enviando alertas",
+      });
+    } catch (error) {
+      console.error("Error al enviar alertas de stock bajo:", error);
+      toast({
+        title: "Error en alertas",
+        description: "No se pudieron verificar los artículos con stock bajo",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusVariant = (status: string) => {
@@ -379,6 +406,13 @@ const Inventory = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
               </Button>
+
+              {userRole === 'admin' && (
+                <Button variant="outline" size="sm" onClick={handleSendLowStockAlerts}>
+                  <BellRing className="h-4 w-4 mr-2" />
+                  Verificar Stock Bajo
+                </Button>
+              )}
               
               <Button size="sm" onClick={() => setShowAddItemDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
