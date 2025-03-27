@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
@@ -127,11 +128,55 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
           console.error('Error saving audit items:', itemsError);
           throw itemsError;
         }
+        
+        // Update inventory quantities based on audit results
+        for (const item of auditItems) {
+          if (item.actual_quantity !== null) {
+            // Find inventory item in database
+            const { data: inventoryData, error: inventoryError } = await supabase
+              .from('inventory')
+              .select('*')
+              .eq('name', item.name)
+              .eq('location', item.location)
+              .single();
+              
+            if (inventoryError && inventoryError.code !== 'PGRST116') {
+              console.error('Error finding inventory item:', inventoryError);
+              continue;
+            }
+            
+            if (inventoryData) {
+              // Update inventory with the actual quantity from audit
+              const { error: updateError } = await supabase
+                .from('inventory')
+                .update({ quantity: item.actual_quantity })
+                .eq('id', inventoryData.id);
+                
+              if (updateError) {
+                console.error('Error updating inventory quantity:', updateError);
+              }
+            } else {
+              // If item doesn't exist in inventory, create it
+              const { error: insertError } = await supabase
+                .from('inventory')
+                .insert({
+                  name: item.name,
+                  category: item.category,
+                  location: item.location,
+                  quantity: item.actual_quantity
+                });
+                
+              if (insertError) {
+                console.error('Error creating inventory item:', insertError);
+              }
+            }
+          }
+        }
       }
       
       toast({
         title: "Auditoría guardada",
-        description: `Se ha guardado la auditoría de ${selectedLocation} correctamente`,
+        description: `Se ha guardado la auditoría de ${selectedLocation} y se ha actualizado el inventario correctamente`,
       });
       
       resetAuditForm();

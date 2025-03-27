@@ -94,6 +94,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       }
       
       if (auditItemsToRevert && auditItemsToRevert.length > 0) {
+        // Revert inventory quantities for each audit item
         for (const item of auditItemsToRevert) {
           const { data: inventoryData, error: inventoryError } = await supabase
             .from('inventory')
@@ -108,8 +109,10 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
           }
           
           if (inventoryData) {
-            const originalQuantity = item.actual_quantity - (item.difference || 0);
+            // Calculate original quantity before the audit was made
+            const originalQuantity = item.system_quantity;
             
+            // Update inventory back to original quantity
             const { error: updateError } = await supabase
               .from('inventory')
               .update({ quantity: originalQuantity })
@@ -122,6 +125,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
         }
       }
       
+      // Delete the audit items
       const { error: deleteItemsError } = await supabase
         .from('audit_items')
         .delete()
@@ -132,6 +136,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
         throw deleteItemsError;
       }
       
+      // Delete the audit itself
       const { error: deleteAuditError } = await supabase
         .from('audits')
         .delete()
@@ -144,7 +149,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       
       toast({
         title: 'Auditoría eliminada',
-        description: 'La auditoría y sus cambios en el inventario han sido revertidos',
+        description: 'La auditoría ha sido eliminada y el inventario ha sido restaurado a su estado previo',
       });
       
       onDeleteAudit();
