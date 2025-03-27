@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -10,7 +11,8 @@ import {
   Search,
   MapPin,
   Save,
-  ClipboardCheck
+  ClipboardCheck,
+  Trash2
 } from 'lucide-react';
 import {
   Select,
@@ -31,8 +33,20 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription 
+  DialogDescription, 
+  DialogClose 
 } from '@/components/ui/dialog';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Mock data for inventory items by location
@@ -86,6 +100,8 @@ const Audit = () => {
   const [loading, setLoading] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState<AuditHistory | null>(null);
+  const [deletingAudit, setDeletingAudit] = useState<AuditHistory | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   useEffect(() => {
     // Check authentication
@@ -237,6 +253,107 @@ const Audit = () => {
     setSelectedLocation('');
     setAuditItems([]);
     setSearchQuery('');
+  };
+
+  // Delete audit and revert inventory changes
+  const handleDeleteAudit = async () => {
+    if (!deletingAudit) return;
+    
+    setIsDeleting(true);
+    try {
+      // First, load the audit items if not already loaded
+      let auditItemsToRevert = deletingAudit.items;
+      
+      if (!auditItemsToRevert || auditItemsToRevert.length === 0) {
+        const { data, error } = await supabase
+          .from('audit_items')
+          .select('*')
+          .eq('audit_id', deletingAudit.id);
+        
+        if (error) {
+          console.error('Error loading audit items for deletion:', error);
+          throw error;
+        }
+        
+        auditItemsToRevert = data;
+      }
+      
+      // For each audit item, update the inventory to reverse the changes
+      if (auditItemsToRevert && auditItemsToRevert.length > 0) {
+        for (const item of auditItemsToRevert) {
+          // Check if the item exists in inventory
+          const { data: inventoryData, error: inventoryError } = await supabase
+            .from('inventory')
+            .select('*')
+            .eq('name', item.name)
+            .eq('location', item.location)
+            .single();
+          
+          if (inventoryError && inventoryError.code !== 'PGRST116') {
+            console.error('Error checking inventory for item:', inventoryError);
+            continue;
+          }
+          
+          // If the item exists, revert the quantity change
+          if (inventoryData) {
+            // Calculate the original quantity before the audit
+            // For this we revert the difference: current quantity - difference = original quantity
+            const originalQuantity = item.actual_quantity - (item.difference || 0);
+            
+            const { error: updateError } = await supabase
+              .from('inventory')
+              .update({ quantity: originalQuantity })
+              .eq('id', inventoryData.id);
+            
+            if (updateError) {
+              console.error('Error reverting inventory quantity:', updateError);
+              // Continue with other items even if one fails
+            }
+          }
+        }
+      }
+      
+      // Now delete the audit items
+      const { error: deleteItemsError } = await supabase
+        .from('audit_items')
+        .delete()
+        .eq('audit_id', deletingAudit.id);
+      
+      if (deleteItemsError) {
+        console.error('Error deleting audit items:', deleteItemsError);
+        throw deleteItemsError;
+      }
+      
+      // Finally delete the audit
+      const { error: deleteAuditError } = await supabase
+        .from('audits')
+        .delete()
+        .eq('id', deletingAudit.id);
+      
+      if (deleteAuditError) {
+        console.error('Error deleting audit:', deleteAuditError);
+        throw deleteAuditError;
+      }
+      
+      toast({
+        title: 'Auditoría eliminada',
+        description: 'La auditoría y sus cambios en el inventario han sido revertidos',
+      });
+      
+      // Refresh the audit history
+      loadAuditHistory();
+      setDeletingAudit(null);
+      
+    } catch (err) {
+      console.error('Error in delete audit:', err);
+      toast({
+        title: 'Error al eliminar',
+        description: 'No se pudo eliminar la auditoría. Intente nuevamente.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // View audit details
@@ -424,16 +541,28 @@ const Audit = () => {
                 },
                 {
                   key: 'actions',
-                  header: '',
+                  header: 'Acciones',
                   cell: (item) => (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleViewDetails(item)}
-                      disabled={loading}
-                    >
-                      Ver Detalles
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleViewDetails(item)}
+                        disabled={loading || isDeleting}
+                      >
+                        Ver Detalles
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                        onClick={() => setDeletingAudit(item)}
+                        disabled={loading || isDeleting}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Eliminar
+                      </Button>
+                    </div>
                   )
                 }
               ]}
@@ -504,6 +633,32 @@ const Audit = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Audit Confirmation Dialog */}
+      <AlertDialog 
+        open={!!deletingAudit} 
+        onOpenChange={(open) => !open && setDeletingAudit(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta auditoría?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Eliminará permanentemente la auditoría y 
+              revertirá los cambios realizados en el inventario durante esta auditoría.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteAudit}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
