@@ -25,7 +25,6 @@ type AuditHistory = {
 type Location = {
   id: string;
   name: string;
-  created_at?: string;
 };
 
 type InventoryItem = {
@@ -53,7 +52,7 @@ const Audit = () => {
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Fetch locations from Supabase
+  // Fetch locations
   const { 
     data: locations = [], 
     isLoading: isLoadingLocations 
@@ -61,20 +60,13 @@ const Audit = () => {
     queryKey: ['locations'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('locations')
-          .select('*');
-
-        if (error) {
-          toast({
-            title: 'Error al cargar ubicaciones',
-            description: error.message,
-            variant: 'destructive'
-          });
-          throw error;
-        }
-
-        return data || [];
+        // Simulating a fetch of locations - in a real app, this would come from the database
+        return [
+          { id: '1', name: 'Almacén Principal' },
+          { id: '2', name: 'Almacén Secundario' },
+          { id: '3', name: 'Oficina Central' },
+          { id: '4', name: 'CDMX' }
+        ];
       } catch (err) {
         console.error('Error fetching locations:', err);
         return [];
@@ -94,25 +86,42 @@ const Audit = () => {
       if (!selectedLocation) return [];
       
       try {
-        const { data, error } = await supabase
-          .from('inventory')
-          .select('*')
-          .eq('location', selectedLocation);
-
-        if (error) {
-          toast({
-            title: 'Error al cargar inventario',
-            description: error.message,
-            variant: 'destructive'
-          });
-          throw error;
-        }
-
-        return data.map(item => ({
-          ...item,
-          quantity: item.quantity,
-          last_audit: '2023-06-01' // Placeholder until we have real audit history per item
-        })) || [];
+        // In a real app, fetch items from the database based on location
+        // This is a simulation with hardcoded data
+        return [
+          { 
+            id: '1', 
+            name: 'Silla de Oficina', 
+            category: 'Mobiliario',
+            location: selectedLocation,
+            quantity: 15,
+            last_audit: '2023-05-15'
+          },
+          { 
+            id: '2', 
+            name: 'Papel para Impresora', 
+            category: 'Material de Oficina',
+            location: selectedLocation,
+            quantity: 8,
+            last_audit: '2023-05-10'
+          },
+          { 
+            id: '3', 
+            name: 'Laptop', 
+            category: 'Electrónicos',
+            location: selectedLocation,
+            quantity: 12,
+            last_audit: '2023-06-01'
+          },
+          { 
+            id: '4', 
+            name: 'Kit de Primeros Auxilios', 
+            category: 'Equipo de Seguridad',
+            location: selectedLocation,
+            quantity: 12,
+            last_audit: '2023-05-30'
+          }
+        ];
       } catch (err) {
         console.error('Error fetching inventory items:', err);
         return [];
@@ -158,7 +167,7 @@ const Audit = () => {
         id: item.id,
         name: item.name,
         category: item.category,
-        system_quantity: item.quantity, 
+        system_quantity: item.quantity,
         actual_quantity: item.quantity, // Default to system quantity initially
         difference: 0, // Initially no difference
         last_audit: item.last_audit
@@ -304,17 +313,11 @@ const Audit = () => {
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      {isLoadingLocations ? (
-                        <SelectItem value="loading" disabled>Cargando ubicaciones...</SelectItem>
-                      ) : locations.length === 0 ? (
-                        <SelectItem value="empty" disabled>No hay ubicaciones disponibles</SelectItem>
-                      ) : (
-                        locations.map((location) => (
-                          <SelectItem key={location.id} value={location.name}>
-                            {location.name}
-                          </SelectItem>
-                        ))
-                      )}
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.name}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
