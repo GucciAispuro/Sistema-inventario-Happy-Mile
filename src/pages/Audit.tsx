@@ -16,14 +16,12 @@ import { toast } from '@/hooks/use-toast';
 import { DataTable } from '@/components/ui/DataTable';
 import { Calendar, Plus, Minus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import AuditDetail, { AuditDetail as AuditDetailType, AuditItem } from '@/components/audit/AuditDetail';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Type definitions
 type AuditHistory = {
@@ -49,12 +47,30 @@ type InventoryItem = {
   quantity: number;
 };
 
+type AuditItem = {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  system_quantity: number;
+  actual_quantity: number;
+  difference: number;
+};
+
+type AuditDetailType = {
+  id: string;
+  location: string;
+  date: string;
+  user_name: string;
+  items_count: number;
+  discrepancies: number;
+  items: AuditItem[];
+};
+
 const Audit = () => {
   const [user, setUser] = useState('Admin User'); // Default user
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState<AuditDetailType | null>(null);
-  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isAuditItemsDialogOpen, setIsAuditItemsDialogOpen] = useState(false);
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
 
@@ -80,53 +96,45 @@ const Audit = () => {
   });
 
   // Fetch inventory items for the selected location
-  const { 
-    data: inventoryItems = [],
-    isLoading: isLoadingInventory,
-    refetch: refetchInventoryItems
-  } = useQuery<InventoryItem[]>({
-    queryKey: ['inventory-items', selectedLocation],
-    queryFn: async () => {
-      if (!selectedLocation) return [];
-      
-      try {
-        // In a real app, fetch items from the database based on location
-        // This is a simulation with hardcoded data
-        return [
-          { 
-            id: '1', 
-            name: 'Laptop HP', 
-            category: 'Electrónicos',
-            location: selectedLocation,
-            quantity: 10
-          },
-          { 
-            id: '2', 
-            name: 'Monitor Dell', 
-            category: 'Electrónicos',
-            location: selectedLocation,
-            quantity: 15
-          },
-          { 
-            id: '3', 
-            name: 'Teclado Mecánico', 
-            category: 'Periféricos',
-            location: selectedLocation,
-            quantity: 20
-          }
-        ];
-      } catch (err) {
-        console.error('Error fetching inventory items:', err);
-        return [];
-      }
-    },
-    enabled: !!selectedLocation
-  });
+  const fetchInventoryItems = async (locationName: string) => {
+    if (!locationName) return [];
+    
+    try {
+      // In a real app, fetch items from the database based on location
+      // This is a simulation with hardcoded data
+      return [
+        { 
+          id: '1', 
+          name: 'Laptop HP', 
+          category: 'Electrónicos',
+          location: locationName,
+          quantity: 10
+        },
+        { 
+          id: '2', 
+          name: 'Monitor Dell', 
+          category: 'Electrónicos',
+          location: locationName,
+          quantity: 15
+        },
+        { 
+          id: '3', 
+          name: 'Teclado Mecánico', 
+          category: 'Periféricos',
+          location: locationName,
+          quantity: 20
+        }
+      ];
+    } catch (err) {
+      console.error('Error fetching inventory items:', err);
+      return [];
+    }
+  };
 
   // Fetch audit history
   const { 
     data: auditHistory = [], 
-    isLoading, 
+    isLoading: isLoadingAuditHistory, 
     refetch: refetchAuditHistory
   } = useQuery<AuditHistory[]>({
     queryKey: ['audit-history'],
@@ -154,27 +162,32 @@ const Audit = () => {
     }
   });
 
-  const handleOpenAuditModal = () => {
-    setIsAuditModalOpen(true);
-  };
-
-  const handleLocationSelect = (location: string) => {
-    setSelectedLocation(location);
-    
-    // Generate audit items based on inventory
-    const items: AuditItem[] = inventoryItems.map(item => ({
-      id: item.id,
-      name: item.name,
-      category: item.category,
-      location: item.location,
-      system_quantity: item.quantity,
-      actual_quantity: item.quantity, // Default to system quantity initially
-      difference: 0 // Initially no difference
-    }));
-    
-    setAuditItems(items);
-    setIsAuditModalOpen(false);
-    setIsAuditItemsDialogOpen(true);
+  const handleLocationSelect = async (locationName: string) => {
+    try {
+      // Fetch inventory items for the selected location
+      const inventoryItems = await fetchInventoryItems(locationName);
+      
+      // Generate audit items based on inventory
+      const items: AuditItem[] = inventoryItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        location: item.location,
+        system_quantity: item.quantity,
+        actual_quantity: item.quantity, // Default to system quantity initially
+        difference: 0 // Initially no difference
+      }));
+      
+      setAuditItems(items);
+      setIsAuditItemsDialogOpen(true);
+    } catch (error) {
+      console.error('Error preparing audit:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los artículos para la auditoría',
+        variant: 'destructive'
+      });
+    }
   };
 
   // Update actual quantity for an item
@@ -200,15 +213,16 @@ const Audit = () => {
   // Handle form submission
   const handleSaveAudit = async () => {
     try {
-      if (!selectedLocation) {
+      if (auditItems.length === 0) {
         toast({
-          title: 'Ubicación no seleccionada',
-          description: 'Por favor selecciona una ubicación para la auditoría.',
+          title: 'No hay artículos',
+          description: 'No hay artículos para auditar',
           variant: 'destructive'
         });
         return;
       }
 
+      const locationName = auditItems[0].location;
       const itemsWithDiscrepancies = auditItems.length;
       const discrepancyCount = getDiscrepancyCount();
 
@@ -216,7 +230,7 @@ const Audit = () => {
       const { data: auditRecord, error: auditError } = await supabase
         .from('audits')
         .insert({
-          location: selectedLocation,
+          location: locationName,
           date: new Date().toISOString().split('T')[0],
           user_name: user,
           items_count: itemsWithDiscrepancies,
@@ -256,8 +270,8 @@ const Audit = () => {
       });
 
       // Reset form and close dialog
-      setSelectedLocation('');
       setIsAuditItemsDialogOpen(false);
+      setAuditItems([]);
 
       // Refresh audit history
       refetchAuditHistory();
@@ -329,9 +343,23 @@ const Audit = () => {
         <MotionContainer>
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Auditoría de Inventario</h1>
-            <Button onClick={handleOpenAuditModal}>
-              Nueva Auditoría
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  Nueva Auditoría
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {locations.map((location) => (
+                  <DropdownMenuItem 
+                    key={location.id}
+                    onClick={() => handleLocationSelect(location.name)}
+                  >
+                    {location.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </MotionContainer>
         
@@ -341,7 +369,7 @@ const Audit = () => {
             
             <DataTable 
               data={auditHistory}
-              loading={isLoading}
+              loading={isLoadingAuditHistory}
               emptyState="No hay registros de auditorías"
               columns={[
                 { 
@@ -391,50 +419,18 @@ const Audit = () => {
         </MotionContainer>
       </div>
       
-      {/* Location Selection Modal */}
-      <Dialog open={isAuditModalOpen} onOpenChange={setIsAuditModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Seleccionar Ubicación para Auditoría</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Select onValueChange={handleLocationSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar ubicación" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.name}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAuditModalOpen(false)}>
-              Cancelar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Audit Items Dialog */}
       <Dialog open={isAuditItemsDialogOpen} onOpenChange={setIsAuditItemsDialogOpen}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Auditoría: {selectedLocation}</DialogTitle>
+            <DialogTitle>Auditoría: {auditItems.length > 0 ? auditItems[0].location : ''}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
                 <span className="text-sm text-muted-foreground">Ubicación</span>
-                <span className="text-lg font-medium">{selectedLocation}</span>
+                <span className="text-lg font-medium">{auditItems.length > 0 ? auditItems[0].location : ''}</span>
               </div>
               <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
                 <span className="text-sm text-muted-foreground">Artículos</span>
@@ -527,11 +523,77 @@ const Audit = () => {
       </Dialog>
       
       {/* Audit Detail Dialog */}
-      <AuditDetail 
-        audit={selectedAudit}
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-      />
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Detalle de Auditoría</DialogTitle>
+          </DialogHeader>
+          
+          {selectedAudit && (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                  <span className="text-sm text-muted-foreground">Fecha</span>
+                  <span className="text-lg font-medium">{selectedAudit.date}</span>
+                </div>
+                <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                  <span className="text-sm text-muted-foreground">Ubicación</span>
+                  <span className="text-lg font-medium">{selectedAudit.location}</span>
+                </div>
+                <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                  <span className="text-sm text-muted-foreground">Usuario</span>
+                  <span className="text-lg font-medium">{selectedAudit.user_name}</span>
+                </div>
+                <div className="flex flex-col items-center p-3 bg-secondary/30 rounded-md">
+                  <span className="text-sm text-muted-foreground">Discrepancias</span>
+                  <span className={`text-lg font-medium ${selectedAudit.discrepancies > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                    {selectedAudit.discrepancies}
+                  </span>
+                </div>
+              </div>
+              
+              <table className="w-full border-collapse mt-4">
+                <thead>
+                  <tr className="bg-muted">
+                    <th className="text-left p-2">Artículo</th>
+                    <th className="text-left p-2">Categoría</th>
+                    <th className="text-left p-2">Sistema</th>
+                    <th className="text-left p-2">Real</th>
+                    <th className="text-left p-2">Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedAudit.items.map((item) => (
+                    <tr key={item.id} className="border-b">
+                      <td className="p-2">{item.name}</td>
+                      <td className="p-2">{item.category}</td>
+                      <td className="p-2 font-medium">{item.system_quantity}</td>
+                      <td className="p-2 font-medium">{item.actual_quantity}</td>
+                      <td className="p-2">
+                        <div className="flex items-center">
+                          {item.difference > 0 && <Plus className="h-3 w-3 text-destructive mr-1" />}
+                          {item.difference < 0 && <Minus className="h-3 w-3 text-blue-600 mr-1" />}
+                          <span 
+                            className={
+                              item.difference > 0 
+                                ? 'text-destructive font-medium' 
+                                : item.difference < 0 
+                                  ? 'text-blue-600 font-medium' 
+                                  : 'text-green-600 font-medium'
+                            }
+                          >
+                            {item.difference > 0 ? `+${item.difference}` : item.difference}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
