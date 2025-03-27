@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 
-// Transactions type definition
+// Define the Transaction type more accurately matching what's returned from Supabase
 type Transaction = {
   id: string;
   item: string;
@@ -38,17 +38,20 @@ type Transaction = {
   quantity: number;
   date: string;
   user_name: string;
-  notes: string;
-  has_proof: boolean;
+  notes: string | null;
+  has_proof: boolean | null;
+  proof_url?: string | null;
+  created_at?: string;
+  user_id?: string;
 };
 
 const Transactions = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [filterType, setFilterType] = useState('');
+  const [filterType, setFilterType] = useState<string>('');
 
-  // Fetch transactions
+  // Fixed useQuery implementation with proper types and type assertions
   const { 
     data: transactions = [], 
     isLoading, 
@@ -90,12 +93,15 @@ const Transactions = () => {
         return [];
       }
 
-      return data;
+      // Cast the response to our Transaction type to ensure compatibility
+      return (data || []) as Transaction[];
     }
   });
 
-  // Unique categories for filter dropdown
-  const categories = Array.from(new Set(transactions.map(t => t.category)));
+  // Unique categories for filter dropdown - fix for type safety
+  const categories = Array.from(
+    new Set((transactions as Transaction[]).map(t => t.category))
+  );
 
   // Check authentication
   useEffect(() => {
@@ -140,7 +146,8 @@ const Transactions = () => {
                   <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
+                  <SelectItem value="">Todas las categorías</SelectItem>
+                  {categories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -156,6 +163,7 @@ const Transactions = () => {
                   <SelectValue placeholder="Tipo de Transacción" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Todos los tipos</SelectItem>
                   <SelectItem value="IN">Entrada</SelectItem>
                   <SelectItem value="OUT">Salida</SelectItem>
                 </SelectContent>
@@ -193,14 +201,14 @@ const Transactions = () => {
         
         <MotionContainer delay={100}>
           <DataTable 
-            data={transactions}
+            data={transactions as Transaction[]}
             columns={[
               { key: 'item', header: 'Artículo' },
               { key: 'location', header: 'Ubicación' },
               { 
                 key: 'type', 
                 header: 'Tipo',
-                cell: (transaction) => (
+                cell: (transaction: Transaction) => (
                   <div className="flex items-center">
                     {transaction.type === 'IN' ? (
                       <>
@@ -219,14 +227,14 @@ const Transactions = () => {
               { 
                 key: 'quantity', 
                 header: 'Cant.',
-                cell: (transaction) => (
+                cell: (transaction: Transaction) => (
                   <div className="font-medium">{transaction.quantity}</div>
                 )
               },
               { 
                 key: 'date', 
                 header: 'Fecha',
-                cell: (transaction) => (
+                cell: (transaction: Transaction) => (
                   <div className="flex items-center text-muted-foreground">
                     <Clock className="h-3 w-3 mr-1" />
                     {transaction.date}
@@ -236,7 +244,7 @@ const Transactions = () => {
               { 
                 key: 'user_name', 
                 header: 'Usuario',
-                cell: (transaction) => (
+                cell: (transaction: Transaction) => (
                   <div className="flex items-center">
                     <User className="h-3 w-3 mr-1 text-muted-foreground" />
                     {transaction.user_name}
@@ -246,7 +254,7 @@ const Transactions = () => {
               { 
                 key: 'proof', 
                 header: 'Comprobante',
-                cell: (transaction) => (
+                cell: (transaction: Transaction) => (
                   transaction.has_proof ? (
                     <Button variant="ghost" size="sm" className="h-6 px-2">
                       <FileText className="h-3 w-3 mr-1" />
@@ -260,7 +268,7 @@ const Transactions = () => {
               { 
                 key: 'notes', 
                 header: 'Notas',
-                cell: (transaction) => (
+                cell: (transaction: Transaction) => (
                   <div className="max-w-[200px] truncate text-muted-foreground">
                     {transaction.notes || 'Sin notas'}
                   </div>
