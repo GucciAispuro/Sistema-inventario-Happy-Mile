@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
@@ -44,6 +43,8 @@ const Audit = () => {
   const [isAuditDialogOpen, setIsAuditDialogOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedAudit, setSelectedAudit] = useState<AuditDetailType | null>(null);
+  
+  // Define auditItems before using it
   const [auditItems, setAuditItems] = useState<AuditItem[]>([
     { 
       id: '1', 
@@ -152,9 +153,10 @@ const Audit = () => {
         throw new Error(`Error al guardar la auditoría: ${auditError.message}`);
       }
 
-      // Insert audit items
-      const auditItems = auditData.items.map(item => ({
+      // Insert audit items - Make sure to include the id property
+      const auditItemsData = auditData.items.map(item => ({
         audit_id: auditRecord.id,
+        id: item.id, // Include the id property
         name: item.name,
         category: item.category,
         location: item.location,
@@ -165,7 +167,7 @@ const Audit = () => {
 
       const { error: itemsError } = await supabase
         .from('audit_items')
-        .insert(auditItems);
+        .insert(auditItemsData);
 
       if (itemsError) {
         throw new Error(`Error al guardar los elementos de la auditoría: ${itemsError.message}`);
@@ -218,10 +220,21 @@ const Audit = () => {
         throw new Error(`Error al cargar los elementos de la auditoría: ${itemsError.message}`);
       }
 
+      // Transform itemsData to match AuditItem interface if needed
+      const transformedItems: AuditItem[] = (itemsData || []).map(item => ({
+        id: item.id || item.audit_id, // Ensure there's an id
+        name: item.name,
+        category: item.category,
+        location: item.location,
+        system_quantity: item.system_quantity,
+        actual_quantity: item.actual_quantity,
+        difference: item.difference
+      }));
+
       // Set selected audit for detail view
       setSelectedAudit({
         ...auditData,
-        items: itemsData || []
+        items: transformedItems
       });
 
       setIsDetailOpen(true);
