@@ -60,9 +60,10 @@ const Inventory = () => {
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   
-  const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
-  const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
-  const statuses = Array.from(new Set(inventoryItems.map(item => item.status)));
+  // Initialize with empty arrays to prevent map errors
+  const locations = Array.from(new Set(inventoryItems?.map(item => item.location) || []));
+  const categories = Array.from(new Set(inventoryItems?.map(item => item.category) || []));
+  const statuses = Array.from(new Set(inventoryItems?.map(item => item.status) || []));
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -76,6 +77,8 @@ const Inventory = () => {
   }, [navigate]);
   
   useEffect(() => {
+    if (!inventoryItems) return;
+    
     let filtered = inventoryItems;
     
     if (searchQuery.trim() !== '') {
@@ -108,7 +111,7 @@ const Inventory = () => {
   const handleAddItem = (newItem) => {
     const { delivery_time, ...itemWithoutDeliveryTime } = newItem;
     
-    setInventoryItems([...inventoryItems, itemWithoutDeliveryTime]);
+    setInventoryItems(prevItems => [...(prevItems || []), itemWithoutDeliveryTime]);
     
     toast({
       title: "Artículo añadido",
@@ -117,6 +120,8 @@ const Inventory = () => {
   };
 
   const handleExport = () => {
+    if (!filteredItems) return;
+    
     const dataToExport = formatInventoryForExport(filteredItems);
     const timestamp = new Date().toISOString().split('T')[0];
     exportToExcel(dataToExport, `inventario-${timestamp}`, 'Inventario');
@@ -181,7 +186,7 @@ const Inventory = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                    {locations.map(location => (
+                    {locations && locations.map(location => (
                       <SelectItem key={location} value={location}>{location}</SelectItem>
                     ))}
                   </SelectContent>
@@ -213,7 +218,7 @@ const Inventory = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todas las categorías</SelectItem>
-                          {categories.map(category => (
+                          {categories && categories.map(category => (
                             <SelectItem key={category} value={category}>{category}</SelectItem>
                           ))}
                         </SelectContent>
@@ -228,7 +233,7 @@ const Inventory = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos los estados</SelectItem>
-                          {statuses.map(status => (
+                          {statuses && statuses.map(status => (
                             <SelectItem key={status} value={status}>{status}</SelectItem>
                           ))}
                         </SelectContent>
@@ -258,7 +263,7 @@ const Inventory = () => {
         
         <MotionContainer delay={100}>
           <DataTable 
-            data={filteredItems}
+            data={filteredItems || []}
             columns={[
               { key: 'name', header: 'Nombre del Artículo' },
               { key: 'category', header: 'Categoría' },
@@ -334,7 +339,7 @@ const Inventory = () => {
       <AddItemDialog
         open={showAddItemDialog}
         onOpenChange={setShowAddItemDialog}
-        locations={locations}
+        locations={locations || []}
         onAddItem={handleAddItem}
       />
     </Layout>
