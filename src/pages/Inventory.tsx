@@ -60,10 +60,10 @@ const Inventory = () => {
   const [totalInventoryValue, setTotalInventoryValue] = useState(0);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   
-  // Initialize with empty arrays to prevent map errors
-  const locations = Array.from(new Set(inventoryItems?.map(item => item.location) || []));
-  const categories = Array.from(new Set(inventoryItems?.map(item => item.category) || []));
-  const statuses = Array.from(new Set(inventoryItems?.map(item => item.status) || []));
+  // Ensure these arrays are never undefined by providing default empty arrays
+  const locations = Array.from(new Set((inventoryItems || []).map(item => item.location)));
+  const categories = Array.from(new Set((inventoryItems || []).map(item => item.category)));
+  const statuses = Array.from(new Set((inventoryItems || []).map(item => item.status)));
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -77,9 +77,10 @@ const Inventory = () => {
   }, [navigate]);
   
   useEffect(() => {
+    // Early return if inventoryItems is undefined
     if (!inventoryItems) return;
     
-    let filtered = inventoryItems;
+    let filtered = [...inventoryItems];
     
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
@@ -111,7 +112,8 @@ const Inventory = () => {
   const handleAddItem = (newItem) => {
     const { delivery_time, ...itemWithoutDeliveryTime } = newItem;
     
-    setInventoryItems(prevItems => [...(prevItems || []), itemWithoutDeliveryTime]);
+    // Use the functional form of setState to avoid dependency on current state
+    setInventoryItems(prevItems => [...prevItems, itemWithoutDeliveryTime]);
     
     toast({
       title: "Artículo añadido",
@@ -120,7 +122,15 @@ const Inventory = () => {
   };
 
   const handleExport = () => {
-    if (!filteredItems) return;
+    // Ensure filteredItems exists before exporting
+    if (!filteredItems || filteredItems.length === 0) {
+      toast({
+        title: "Error al exportar",
+        description: "No hay datos para exportar",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const dataToExport = formatInventoryForExport(filteredItems);
     const timestamp = new Date().toISOString().split('T')[0];
@@ -186,7 +196,7 @@ const Inventory = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                    {locations && locations.map(location => (
+                    {locations.map(location => (
                       <SelectItem key={location} value={location}>{location}</SelectItem>
                     ))}
                   </SelectContent>
@@ -218,7 +228,7 @@ const Inventory = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todas las categorías</SelectItem>
-                          {categories && categories.map(category => (
+                          {categories.map(category => (
                             <SelectItem key={category} value={category}>{category}</SelectItem>
                           ))}
                         </SelectContent>
@@ -233,7 +243,7 @@ const Inventory = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos los estados</SelectItem>
-                          {statuses && statuses.map(status => (
+                          {statuses.map(status => (
                             <SelectItem key={status} value={status}>{status}</SelectItem>
                           ))}
                         </SelectContent>
@@ -339,7 +349,7 @@ const Inventory = () => {
       <AddItemDialog
         open={showAddItemDialog}
         onOpenChange={setShowAddItemDialog}
-        locations={locations || []}
+        locations={locations}
         onAddItem={handleAddItem}
       />
     </Layout>
