@@ -48,8 +48,8 @@ type Transaction = {
 const Transactions = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterType, setFilterType] = useState<string>('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterType, setFilterType] = useState('all');
 
   // Fixed useQuery implementation with proper types and type assertions
   const { 
@@ -72,13 +72,13 @@ const Transactions = () => {
         );
       }
 
-      // Apply category filter
-      if (filterCategory) {
+      // Apply category filter - only apply if not 'all'
+      if (filterCategory && filterCategory !== 'all') {
         query = query.eq('category', filterCategory);
       }
 
-      // Apply type filter
-      if (filterType) {
+      // Apply type filter - only apply if not 'all'
+      if (filterType && filterType !== 'all') {
         query = query.eq('type', filterType);
       }
 
@@ -93,6 +93,7 @@ const Transactions = () => {
         return [];
       }
 
+      console.log('Transactions fetched:', data);
       // Cast the response to our Transaction type to ensure compatibility
       return (data || []) as Transaction[];
     }
@@ -100,7 +101,7 @@ const Transactions = () => {
 
   // Unique categories for filter dropdown - fix for type safety
   const categories = Array.from(
-    new Set((transactions as Transaction[]).map(t => t.category))
+    new Set((transactions || []).map(t => t.category).filter(Boolean))
   );
 
   // Check authentication
@@ -122,6 +123,12 @@ const Transactions = () => {
     });
   };
 
+  const resetFilters = () => {
+    setFilterCategory('all');
+    setFilterType('all');
+    setSearchQuery('');
+  };
+
   return (
     <Layout title="Transacciones">
       <div className="space-y-6">
@@ -137,7 +144,7 @@ const Transactions = () => {
               />
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Select 
                 value={filterCategory} 
                 onValueChange={setFilterCategory}
@@ -172,11 +179,8 @@ const Transactions = () => {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => {
-                  setFilterCategory('');
-                  setFilterType('');
-                  setSearchQuery('');
-                }}
+                onClick={resetFilters}
+                disabled={filterCategory === 'all' && filterType === 'all' && !searchQuery}
               >
                 <Filter className="h-4 w-4 mr-2" />
                 Limpiar Filtros
@@ -201,7 +205,7 @@ const Transactions = () => {
         
         <MotionContainer delay={100}>
           <DataTable 
-            data={transactions as Transaction[]}
+            data={transactions}
             columns={[
               { key: 'item', header: 'Artículo' },
               { key: 'location', header: 'Ubicación' },
