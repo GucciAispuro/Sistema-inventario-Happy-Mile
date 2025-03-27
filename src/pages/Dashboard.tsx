@@ -7,6 +7,8 @@ import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   BoxIcon, 
   Package, 
@@ -19,26 +21,20 @@ import {
   DollarSign
 } from 'lucide-react';
 
-// Mock data with cost
-const lowStockItems = [
-  { id: 1, name: 'Silla de Oficina', location: 'CDMX', stock: 2, min: 5, status: 'Bajo', cost: 1200, total: 2400 },
-  { id: 2, name: 'Papel para Impresora', location: 'Monterrey', stock: 3, min: 10, status: 'Crítico', cost: 120, total: 360 },
-  { id: 3, name: 'Llanta de Repuesto', location: 'Guadalajara', stock: 1, min: 3, status: 'Bajo', cost: 2500, total: 2500 },
-  { id: 4, name: 'Chaleco de Seguridad', location: 'Culiacán', stock: 4, min: 5, status: 'Bajo', cost: 350, total: 1400 },
-];
-
-const recentTransactions = [
-  { id: 1, item: 'Silla de Oficina', location: 'CDMX', type: 'OUT', quantity: 1, date: '2023-06-01', user: 'María G.' },
-  { id: 2, name: 'Papel para Impresora', location: 'Monterrey', type: 'IN', quantity: 25, date: '2023-05-30', user: 'Carlos R.' },
-  { id: 3, name: 'Llanta de Repuesto', location: 'Guadalajara', type: 'OUT', quantity: 2, date: '2023-05-29', user: 'Juan P.' },
-  { id: 4, name: 'Laptop', location: 'CDMX', type: 'IN', quantity: 5, date: '2023-05-28', user: 'Ana L.' },
-  { id: 5, name: 'Chaleco de Seguridad', location: 'Culiacán', type: 'OUT', quantity: 3, date: '2023-05-28', user: 'Diego M.' },
-];
-
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [totalInventoryValue, setTotalInventoryValue] = useState(239320); // Valor total del inventario
+  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalItems: 0,
+    locations: 0,
+    recentTransactions: 0,
+    inventoryValue: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     // Check authentication
@@ -51,8 +47,123 @@ const Dashboard = () => {
     // Get user role
     const role = localStorage.getItem('userRole');
     setUserRole(role);
+    
+    // Fetch dashboard data
+    fetchDashboardData();
+    
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('dashboard-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        () => fetchDashboardData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory' },
+        () => fetchDashboardData()
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [navigate]);
-
+  
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch low stock items
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*');
+      
+      if (inventoryError) {
+        console.error('Error fetching inventory:', inventoryError);
+        toast({
+          title: 'Error al cargar datos',
+          description: 'No se pudieron cargar los datos del inventario',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      // Fetch recent transactions
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (transactionsError) {
+        console.error('Error fetching transactions:', transactionsError);
+        return;
+      }
+      
+      // Calculate total inventory value and find low stock items
+      let totalValue = 0;
+      const lowItems = [];
+      
+      if (inventoryData) {
+        // Get unique locations count
+        const locations = new Set(inventoryData.map(item => item.location)).size;
+        
+        // Calculate total items and value
+        const totalItems = inventoryData.length;
+        
+        for (const item of inventoryData) {
+          // Calculate item total value (assuming cost field exists)
+          const itemTotalValue = (item.cost || 0) * item.quantity;
+          totalValue += itemTotalValue;
+          
+          // Check if low stock
+          const isLowStock = item.quantity < (item.min_stock || 5);
+          if (isLowStock) {
+            lowItems.push({
+              id: item.id,
+              name: item.name,
+              location: item.location,
+              stock: item.quantity,
+              min: item.min_stock || 5,
+              status: item.quantity <= (item.min_stock || 5) / 2 ? 'Crítico' : 'Bajo',
+              cost: item.cost || 0,
+              total: (item.cost || 0) * item.quantity
+            });
+          }
+        }
+        
+        // Update stats
+        setStats({
+          totalItems,
+          locations,
+          recentTransactions: transactionsData?.length || 0,
+          inventoryValue: totalValue
+        });
+      }
+      
+      // Process and format recent transactions
+      const formattedTransactions = transactionsData?.map(transaction => ({
+        id: transaction.id,
+        item: transaction.item,
+        location: transaction.location,
+        type: transaction.type,
+        quantity: transaction.quantity,
+        date: transaction.date,
+        user: transaction.user_name
+      })) || [];
+      
+      // Update state with fetched data
+      setTotalInventoryValue(totalValue);
+      setLowStockItems(lowItems);
+      setRecentTransactions(formattedTransactions);
+    } catch (error) {
+      console.error('Error in dashboard data fetch:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   // Find the function that defines badge variants and update it
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -77,18 +188,18 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatsCard 
               title="Total de Artículos" 
-              value="256" 
+              value={stats.totalItems.toString()} 
               icon={<Package className="h-5 w-5" />}
               trend={{ value: 12, isPositive: true }}
             />
             <StatsCard 
               title="Ubicaciones" 
-              value="4" 
+              value={stats.locations.toString()}
               icon={<Map className="h-5 w-5" />}
             />
             <StatsCard 
               title="Transacciones (30d)" 
-              value="87" 
+              value={stats.recentTransactions.toString()} 
               icon={<ArrowUpDown className="h-5 w-5" />}
               trend={{ value: 4, isPositive: true }}
             />
@@ -165,6 +276,8 @@ const Dashboard = () => {
                 )
               },
             ]}
+            loading={isLoading}
+            emptyState="No hay artículos con bajo stock"
           />
         </MotionContainer>
         
@@ -220,6 +333,8 @@ const Dashboard = () => {
               },
               { key: 'user', header: 'Usuario' },
             ]}
+            loading={isLoading}
+            emptyState="No hay transacciones recientes"
           />
         </MotionContainer>
       </div>
