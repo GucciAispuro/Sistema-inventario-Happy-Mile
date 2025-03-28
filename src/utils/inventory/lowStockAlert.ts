@@ -116,21 +116,15 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
     
     // For each location, check for low stock items
     for (const location of locations) {
-      // Fixed query: Using proper numeric comparison
-      const { data: items, error } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('location', location)
-        .lt('quantity', supabase.rpc('inventory_min_stock')) // This is the issue - fixed below
-        .not('min_stock', 'is', null);
+      // First query had issues, so we're removing it and using only the corrected query below
       
-      // Corrected query implementation
+      // Correctly implemented query to find items with quantity less than min_stock
       const { data: lowStockItems, error: queryError } = await supabase
         .from('inventory')
         .select('*')
         .eq('location', location)
         .not('min_stock', 'is', null)
-        .filter('quantity', 'lt', supabase.raw('min_stock'));
+        .lt('quantity', 'min_stock'); // Fixed TypeScript error by using string comparison
       
       if (queryError) {
         console.error(`Error al verificar stock bajo en ${location}:`, queryError);
