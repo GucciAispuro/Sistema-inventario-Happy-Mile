@@ -33,6 +33,36 @@ const EditUserDialog = ({ open, onOpenChange, user, onUserUpdated, locations }: 
   const [location, setLocation] = useState('');
   const [receiveAlerts, setReceiveAlerts] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [dbLocations, setDbLocations] = useState<string[]>([]);
+  
+  // Fetch locations from the database
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('name')
+          .order('name');
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          const locationNames = data.map(loc => loc.name);
+          setDbLocations(locationNames);
+          // If no location is selected yet but we have locations, select the first one
+          if (!location && locationNames.length > 0 && !user) {
+            setLocation(locationNames[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+      }
+    };
+    
+    fetchLocations();
+  }, [open]);
   
   // Reset and populate form when user changes
   useEffect(() => {
@@ -107,6 +137,9 @@ const EditUserDialog = ({ open, onOpenChange, user, onUserUpdated, locations }: 
     }
   };
   
+  // Use database locations if available, otherwise fall back to props
+  const availableLocations = dbLocations.length > 0 ? dbLocations : locations;
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -158,7 +191,7 @@ const EditUserDialog = ({ open, onOpenChange, user, onUserUpdated, locations }: 
                   <SelectValue placeholder="Seleccionar ubicación" />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map(loc => (
+                  {availableLocations.map(loc => (
                     <SelectItem key={loc} value={loc}>
                       {loc}
                     </SelectItem>

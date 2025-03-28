@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -44,9 +44,42 @@ const AddUserDialog = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('viewer');
-  const [location, setLocation] = useState(locations[0] || 'CDMX');
+  const [location, setLocation] = useState('');
   const [receiveAlerts, setReceiveAlerts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbLocations, setDbLocations] = useState<string[]>([]);
+  
+  // Fetch locations from the database
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('name')
+          .order('name');
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          const locationNames = data.map(loc => loc.name);
+          setDbLocations(locationNames);
+          // If no location is selected yet but we have locations, select the first one
+          if (!location && locationNames.length > 0) {
+            setLocation(locationNames[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+      }
+    };
+    
+    fetchLocations();
+  }, [open]);
+  
+  // Use database locations if available, otherwise fallback to the props
+  const availableLocations = dbLocations.length > 0 ? dbLocations : locations;
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +139,7 @@ const AddUserDialog = ({
       setName('');
       setEmail('');
       setRole('viewer');
-      setLocation(locations[0] || 'CDMX');
+      setLocation(availableLocations[0] || '');
       setReceiveAlerts(false);
       
       // Show success toast
@@ -202,7 +235,7 @@ const AddUserDialog = ({
                   <SelectValue placeholder="Seleccionar ubicación" />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map((loc) => (
+                  {availableLocations.map((loc) => (
                     <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                   ))}
                 </SelectContent>
