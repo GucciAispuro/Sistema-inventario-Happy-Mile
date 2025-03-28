@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,6 @@ const LoginForm = () => {
     setIsLoading(true);
     
     try {
-      // Try to sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -41,7 +39,6 @@ const LoginForm = () => {
       }
       
       if (data.user) {
-        // Set local auth data for the app
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userRole', 'admin');
         localStorage.setItem('userEmail', email);
@@ -66,7 +63,6 @@ const LoginForm = () => {
     }
   };
   
-  // Add signup functionality
   const handleSignUp = async () => {
     if (!email || !password) {
       toast({
@@ -80,7 +76,6 @@ const LoginForm = () => {
     setIsLoading(true);
     
     try {
-      // Register with Supabase
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -115,7 +110,7 @@ const LoginForm = () => {
   return (
     <div className="w-full max-w-md">
       <MotionContainer className="mb-8 text-center">
-        <div className="mx-auto h-16 w-auto mb-4">
+        <div className="mx-auto h-16 w-auto mb-4 flex justify-center">
           <img 
             src="/lovable-uploads/5399f4ec-e1d9-4ad7-bd49-730fd7167990.png" 
             alt="Happy Mile Logo" 
@@ -135,7 +130,7 @@ const LoginForm = () => {
             <Input
               id="email"
               type="email"
-              placeholder="admin@ejemplo.com"
+              placeholder="ejemplo@happymile.com.mx"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="subtle-input"
