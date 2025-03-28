@@ -129,7 +129,8 @@ const Transactions = () => {
             toast({
               title: 'Advertencia',
               description: `Se encontraron ${missingItems.length} transacciones con artículos que no existen en el inventario actual.`,
-              variant: 'warning'
+              // Changed from 'warning' to 'default' since 'warning' is not a supported variant
+              variant: 'default'
             });
           }
         }
