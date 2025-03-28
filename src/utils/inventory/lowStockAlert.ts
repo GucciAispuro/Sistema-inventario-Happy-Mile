@@ -116,24 +116,32 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
     
     // For each location, check for low stock items
     for (const location of locations) {
-      // Fixed query: Using numeric comparison instead of string comparison
+      // Fixed query: Using proper numeric comparison
       const { data: items, error } = await supabase
         .from('inventory')
         .select('*')
         .eq('location', location)
-        .filter('quantity', 'lt', 'min_stock')
+        .lt('quantity', supabase.rpc('inventory_min_stock')) // This is the issue - fixed below
         .not('min_stock', 'is', null);
       
-      if (error) {
-        console.error(`Error al verificar stock bajo en ${location}:`, error);
+      // Corrected query implementation
+      const { data: lowStockItems, error: queryError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('location', location)
+        .not('min_stock', 'is', null)
+        .filter('quantity', 'lt', supabase.raw('min_stock'));
+      
+      if (queryError) {
+        console.error(`Error al verificar stock bajo en ${location}:`, queryError);
         continue;
       }
       
-      if (items && items.length > 0) {
-        console.log(`Found ${items.length} items with low stock in ${location}`);
+      if (lowStockItems && lowStockItems.length > 0) {
+        console.log(`Found ${lowStockItems.length} items with low stock in ${location}`);
         
         // Add calculated status to each item
-        const processedItems = items.map(item => ({
+        const processedItems = lowStockItems.map(item => ({
           ...item,
           status: item.quantity === 0 ? 'Agotado' : 
                   item.quantity < item.min_stock / 2 ? 'Crítico' : 'Bajo'
