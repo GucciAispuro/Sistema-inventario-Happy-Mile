@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ensureTables } from "@/utils/database/ensureTables";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 // Pages
 import Index from "./pages/Index";
@@ -41,15 +43,52 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/colaborador" element={<TransaccionesColaborador />} />
-            <Route path="/audit" element={<Audit />} />
-            <Route path="/admin/items" element={<AdminItems />} />
-            <Route path="/admin/locations" element={<AdminLocations />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Protected Routes */}
+            <Route path="/dashboard" element={
+              <AuthGuard>
+                <Dashboard />
+              </AuthGuard>
+            } />
+            <Route path="/inventory" element={
+              <AuthGuard>
+                <Inventory />
+              </AuthGuard>
+            } />
+            <Route path="/transactions" element={
+              <AuthGuard>
+                <Transactions />
+              </AuthGuard>
+            } />
+            <Route path="/colaborador" element={
+              <AuthGuard>
+                <TransaccionesColaborador />
+              </AuthGuard>
+            } />
+            <Route path="/audit" element={
+              <AuthGuard>
+                <Audit />
+              </AuthGuard>
+            } />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/items" element={
+              <AuthGuard>
+                <AdminItems />
+              </AuthGuard>
+            } />
+            <Route path="/admin/locations" element={
+              <AuthGuard>
+                <AdminLocations />
+              </AuthGuard>
+            } />
+            <Route path="/admin/users" element={
+              <AuthGuard>
+                <AdminUsers />
+              </AuthGuard>
+            } />
+            
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

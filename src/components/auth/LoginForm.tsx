@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import MotionContainer from '../ui/MotionContainer';
-import { BoxesIcon } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -18,22 +18,98 @@ const LoginForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Auto-login without validation
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Por favor ingrese su correo y contraseña",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('isAuthenticated', 'true');
-      
-      toast({
-        title: "Éxito",
-        description: "Has iniciado sesión correctamente",
+    try {
+      // Try to sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
       
-      navigate('/dashboard');
-    }, 500);
+      if (error) {
+        throw error;
+      }
+      
+      if (data.user) {
+        // Set local auth data for the app
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userRole', 'admin');
+        localStorage.setItem('userEmail', email);
+        
+        toast({
+          title: "Éxito",
+          description: "Has iniciado sesión correctamente",
+        });
+        
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      toast({
+        title: "Error de inicio de sesión",
+        description: error.message || "Credenciales incorrectas. Por favor intente de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Add signup functionality
+  const handleSignUp = async () => {
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Por favor ingrese un correo y contraseña para registrarse",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Register with Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role: 'admin',
+          }
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Registro exitoso",
+        description: "Cuenta creada correctamente. Ahora puede iniciar sesión.",
+      });
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      
+      toast({
+        title: "Error de registro",
+        description: error.message || "No se pudo crear la cuenta. Por favor intente de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -48,7 +124,7 @@ const LoginForm = () => {
         </div>
         <h1 className="text-2xl font-semibold">Sistema de Inventario</h1>
         <p className="text-muted-foreground mt-2">
-          Inicio de sesión desactivado para pruebas - haga clic en Iniciar Sesión para continuar
+          Inicie sesión para acceder al sistema
         </p>
       </MotionContainer>
       
@@ -84,11 +160,20 @@ const LoginForm = () => {
           </div>
           
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Iniciando sesión..." : "Iniciar Sesión (Automático)"}
+            {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
           
-          <div className="text-center text-sm text-muted-foreground">
-            <p>El inicio de sesión está desactivado para pruebas - se iniciará como Administrador</p>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-muted-foreground">¿No tiene una cuenta?</p>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="mt-2 w-full"
+              onClick={handleSignUp}
+              disabled={isLoading}
+            >
+              Registrarse
+            </Button>
           </div>
         </form>
       </MotionContainer>

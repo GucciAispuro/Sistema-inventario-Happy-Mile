@@ -1,17 +1,15 @@
 
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   BoxesIcon,
   ArrowLeftRight,
-  Settings,
   Package,
   Map,
   Users,
   LogOut,
   ClipboardCheck,
   FileCheck2,
-  Bell
 } from 'lucide-react';
 import {
   Sidebar,
@@ -21,10 +19,14 @@ import {
 } from '@/components/ui/sidebar';
 import MotionContainer from '../ui/MotionContainer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export function AppSidebar() {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -44,8 +46,28 @@ export function AppSidebar() {
     { icon: FileCheck2, label: 'Auditar', path: '/audit' },
   ];
 
-  // Add console.log to debug current location
-  console.log("Current location:", location.pathname);
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión correctamente",
+      });
+      
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al cerrar sesión",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <Sidebar className={isMobile ? "z-50" : ""}>
@@ -73,7 +95,6 @@ export function AppSidebar() {
                 key={item.path}
                 to={item.path}
                 className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
-                onClick={() => console.log(`Clicked: ${item.label} - Path: ${item.path}`)}
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.label}</span>
@@ -93,7 +114,6 @@ export function AppSidebar() {
                 key={item.path}
                 to={item.path}
                 className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
-                onClick={() => console.log(`Clicked: ${item.label} - Path: ${item.path}`)}
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.label}</span>
@@ -105,10 +125,13 @@ export function AppSidebar() {
       
       <SidebarFooter className="px-3 py-4">
         <MotionContainer delay={300}>
-          <Link to="/" className="nav-link text-sidebar-foreground/70">
+          <button 
+            onClick={handleLogout}
+            className="nav-link text-sidebar-foreground/70 w-full text-left"
+          >
             <LogOut className="h-4 w-4" />
             <span>Cerrar Sesión</span>
-          </Link>
+          </button>
         </MotionContainer>
       </SidebarFooter>
     </Sidebar>
