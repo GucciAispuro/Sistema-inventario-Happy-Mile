@@ -122,7 +122,7 @@ export const checkAndAlertLowStock = async (): Promise<void> => {
         .select('*')
         .eq('location', location)
         .not('min_stock', 'is', null)
-        .lt('quantity', supabase.fn.cast(supabase.raw('min_stock'), 'integer')); // Properly cast to integer for comparison
+        .lt('quantity', 'min_stock'); // Use a simple string comparison which works with Supabase
       
       if (queryError) {
         console.error(`Error al verificar stock bajo en ${location}:`, queryError);
