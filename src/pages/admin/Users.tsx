@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import AddUserDialog from '@/components/admin/AddUserDialog';
+import EditUserDialog from '@/components/admin/EditUserDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 // Define user type
@@ -38,6 +40,8 @@ const AdminUsers = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   // Get unique locations for dropdown
@@ -207,6 +211,11 @@ const AdminUsers = () => {
     }
   };
 
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setIsEditUserDialogOpen(true);
+  };
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'admin': return 'default';
@@ -299,7 +308,7 @@ const AdminUsers = () => {
                 header: '',
                 cell: (user) => (
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)}>
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
@@ -320,6 +329,15 @@ const AdminUsers = () => {
         open={isAddUserDialogOpen}
         onOpenChange={setIsAddUserDialogOpen}
         onAddUser={handleAddUser}
+        locations={locations.length > 0 ? locations : ['CDMX', 'Monterrey', 'Guadalajara', 'Culiacán']}
+      />
+      
+      {/* Edit User Dialog */}
+      <EditUserDialog
+        open={isEditUserDialogOpen}
+        onOpenChange={setIsEditUserDialogOpen}
+        user={selectedUser}
+        onUserUpdated={fetchUsers}
         locations={locations.length > 0 ? locations : ['CDMX', 'Monterrey', 'Guadalajara', 'Culiacán']}
       />
     </Layout>
