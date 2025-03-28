@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
 import EditItemDialog from '@/components/inventory/EditItemDialog';
+import DeleteItemDialog from '@/components/inventory/DeleteItemDialog';
 import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
 import { checkAndAlertLowStock } from '@/utils/inventory/lowStockAlert';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +21,8 @@ import {
   DollarSign,
   MapPin,
   X,
-  BellRing
+  BellRing,
+  Trash2
 } from 'lucide-react';
 import {
   Select,
@@ -63,6 +65,7 @@ const Inventory = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [showEditItemDialog, setShowEditItemDialog] = useState(false);
+  const [showDeleteItemDialog, setShowDeleteItemDialog] = useState(false);
   
   const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
   const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
@@ -245,6 +248,47 @@ const Inventory = () => {
   const handleEditItem = (item: InventoryItem) => {
     setSelectedItem(item);
     setShowEditItemDialog(true);
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    try {
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('item', selectedItem?.name || '')
+        .eq('location', selectedItem?.location || '')
+        .limit(1);
+      
+      if (transactionsError) {
+        throw transactionsError;
+      }
+      
+      if (transactionsData && transactionsData.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "Este artículo tiene transacciones asociadas y no puede ser eliminado. Considere reducir su cantidad a cero en su lugar.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteItemClick = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setShowDeleteItemDialog(true);
   };
 
   const handleExport = () => {
@@ -480,13 +524,24 @@ const Inventory = () => {
                 cell: (item) => (
                   <div className="flex items-center gap-2">
                     {userRole === 'admin' && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEditItem(item)}
-                      >
-                        Editar
-                      </Button>
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditItem(item)}
+                        >
+                          Editar
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteItemClick(item)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Eliminar
+                        </Button>
+                      </>
                     )}
                   </div>
                 )
@@ -511,6 +566,13 @@ const Inventory = () => {
         locations={locations}
         item={selectedItem}
         onUpdateItem={handleUpdateItem}
+      />
+
+      <DeleteItemDialog
+        open={showDeleteItemDialog}
+        onOpenChange={setShowDeleteItemDialog}
+        item={selectedItem}
+        onDeleteItem={handleDeleteItem}
       />
     </Layout>
   );
