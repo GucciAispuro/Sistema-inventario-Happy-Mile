@@ -118,18 +118,24 @@ export type Database = {
       }
       locations: {
         Row: {
+          address: string | null
           created_at: string | null
           id: string
+          manager: string | null
           name: string
         }
         Insert: {
+          address?: string | null
           created_at?: string | null
           id?: string
+          manager?: string | null
           name: string
         }
         Update: {
+          address?: string | null
           created_at?: string | null
           id?: string
+          manager?: string | null
           name?: string
         }
         Relationships: []
