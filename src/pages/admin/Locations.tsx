@@ -25,6 +25,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { supabase } from '@/integrations/supabase/client';
 
 // Mock data for locations
 const locations = [
@@ -204,28 +205,50 @@ const AdminLocations = () => {
     setShowEditLocationDialog(false);
   };
 
-  const handleDeleteLocation = (locationId: number) => {
-    // Verificar si hay artículos en la ubicación
+  const handleDeleteLocation = async (locationId: number) => {
+    // Obtener la ubicación a eliminar
     const locationToDelete = allLocations.find(loc => loc.id === locationId);
+    if (!locationToDelete) return;
     
-    if (locationToDelete && locationToDelete.items_count > 0) {
-      toast({
-        title: "No se puede eliminar",
-        description: "Esta ubicación contiene artículos. Traslade los artículos primero.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Confirmar eliminación
-    if (confirm(`¿Está seguro que desea eliminar la ubicación ${locationToDelete?.name}?`)) {
-      // Eliminar ubicación
-      const updatedLocations = allLocations.filter(loc => loc.id !== locationId);
-      setAllLocations(updatedLocations);
+    try {
+      // Verificar si hay artículos en la ubicación directamente en la base de datos
+      const { data: inventoryItems, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('id')
+        .eq('location', locationToDelete.name)
+        .limit(1);
       
+      if (inventoryError) {
+        throw inventoryError;
+      }
+      
+      // Si hay artículos en la ubicación, mostrar un mensaje de error
+      if (inventoryItems && inventoryItems.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "Esta ubicación contiene artículos. Traslade los artículos primero.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Confirmar eliminación
+      if (confirm(`¿Está seguro que desea eliminar la ubicación ${locationToDelete?.name}?`)) {
+        // Eliminar ubicación
+        const updatedLocations = allLocations.filter(loc => loc.id !== locationId);
+        setAllLocations(updatedLocations);
+        
+        toast({
+          title: "Ubicación eliminada",
+          description: `Se ha eliminado la ubicación correctamente`,
+        });
+      }
+    } catch (error) {
+      console.error("Error al verificar los artículos:", error);
       toast({
-        title: "Ubicación eliminada",
-        description: `Se ha eliminado la ubicación correctamente`,
+        title: "Error",
+        description: "No se pudo verificar los artículos en esta ubicación",
+        variant: "destructive"
       });
     }
   };
