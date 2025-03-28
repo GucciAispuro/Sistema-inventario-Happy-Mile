@@ -35,6 +35,33 @@ const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [inventoryItems, setInventoryItems] = useState<string[]>([]);
+
+  // Fetch inventory items for validation
+  useEffect(() => {
+    const fetchInventoryItems = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('name');
+        
+        if (error) {
+          console.error('Error fetching inventory items:', error);
+          return;
+        }
+        
+        if (data) {
+          const itemNames = data.map(item => item.name);
+          setInventoryItems(itemNames);
+          console.log('Inventory items loaded:', itemNames);
+        }
+      } catch (err) {
+        console.error('Error in inventory fetch:', err);
+      }
+    };
+    
+    fetchInventoryItems();
+  }, []);
 
   // Query transactions from Supabase
   const { 
@@ -88,6 +115,25 @@ const Transactions = () => {
         }
 
         console.log('Transactions fetched:', data);
+        
+        // Check if any transactions reference items that don't exist in inventory
+        if (data && inventoryItems.length > 0) {
+          const missingItems = data.filter(
+            transaction => !inventoryItems.includes(transaction.item)
+          );
+          
+          if (missingItems.length > 0) {
+            console.warn('Transacciones con artículos no encontrados en inventario:', 
+              missingItems.map(t => t.item));
+            
+            toast({
+              title: 'Advertencia',
+              description: `Se encontraron ${missingItems.length} transacciones con artículos que no existen en el inventario actual.`,
+              variant: 'warning'
+            });
+          }
+        }
+        
         return (data || []) as Transaction[];
       } catch (err) {
         console.error('Error in transaction query:', err);
