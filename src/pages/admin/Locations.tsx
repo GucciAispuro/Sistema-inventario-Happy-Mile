@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -27,59 +26,12 @@ import {
 import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 
-// Mock data for locations
-const locations = [
-  { 
-    id: 1, 
-    name: 'CDMX', 
-    address: 'Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 03940 Ciudad de México, CDMX', 
-    items_count: 45,
-    manager: 'Maria Gonzalez',
-    total_value: 208700
-  },
-  { 
-    id: 2, 
-    name: 'Monterrey', 
-    address: 'Av. Lázaro Cárdenas 2424, Residencial San Agustín, San Pedro Garza García, N.L.', 
-    items_count: 38,
-    manager: 'Carlos Rodriguez',
-    total_value: 156800
-  },
-  { 
-    id: 3, 
-    name: 'Guadalajara', 
-    address: 'Av. Adolfo López Mateos Sur 2077, Jardines Plaza del Sol, 44510 Guadalajara, Jal.', 
-    items_count: 32,
-    manager: 'Juan Perez',
-    total_value: 98500
-  },
-  { 
-    id: 4, 
-    name: 'Culiacán', 
-    address: 'Blvd. Pedro Infante 2150, Desarrollo Urbano Tres Ríos, 80020 Culiacán, Sin.', 
-    items_count: 29,
-    manager: 'Ana Lopez',
-    total_value: 76300
-  },
-];
-
-// Lista de managers para seleccionar
-const availableManagers = [
-  'Maria Gonzalez',
-  'Carlos Rodriguez',
-  'Juan Perez',
-  'Ana Lopez',
-  'Luis Hernandez',
-  'Sofia Ramirez',
-  'Miguel Torres'
-];
-
 const AdminLocations = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredLocations, setFilteredLocations] = useState(locations);
+  const [filteredLocations, setFilteredLocations] = useState([]);
   const [totalOverallValue, setTotalOverallValue] = useState(0);
   const [showAddLocationDialog, setShowAddLocationDialog] = useState(false);
   const [showEditLocationDialog, setShowEditLocationDialog] = useState(false);
@@ -89,8 +41,9 @@ const AdminLocations = () => {
     manager: ''
   });
   const [currentLocation, setCurrentLocation] = useState<any>(null);
-  const [allLocations, setAllLocations] = useState(locations);
-  
+  const [allLocations, setAllLocations] = useState([]);
+  const [availableManagers, setAvailableManagers] = useState([]);
+
   useEffect(() => {
     // Check authentication
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -107,7 +60,67 @@ const AdminLocations = () => {
     }
     
     setUserRole(role);
+    fetchLocations();
+    fetchUsers();
   }, [navigate]);
+  
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('*');
+      
+      if (error) {
+        console.error("Error fetching locations:", error);
+        toast({
+          title: "Error al cargar ubicaciones",
+          description: "No se pudieron cargar las ubicaciones",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Format locations with additional data (items_count and total_value will be 0 initially)
+      const formattedLocations = data.map(location => ({
+        id: location.id,
+        name: location.name, 
+        address: location.address || 'Sin dirección',
+        items_count: 0,
+        total_value: 0,
+        manager: location.manager || 'No asignado'
+      }));
+      
+      setAllLocations(formattedLocations);
+      setFilteredLocations(formattedLocations);
+    } catch (error) {
+      console.error("Error in fetchLocations:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las ubicaciones",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('name')
+        .order('name');
+      
+      if (error) {
+        console.error("Error fetching users:", error);
+        return;
+      }
+      
+      // Extract user names from the data
+      const userNames = data.map(user => user.name);
+      setAvailableManagers(userNames);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
   
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -136,7 +149,7 @@ const AdminLocations = () => {
     setShowEditLocationDialog(true);
   };
 
-  const handleSaveLocation = () => {
+  const handleSaveLocation = async () => {
     // Validación básica
     if (!newLocation.name || !newLocation.address || !newLocation.manager) {
       toast({
@@ -147,35 +160,58 @@ const AdminLocations = () => {
       return;
     }
 
-    // Crear nueva ubicación con ID único
-    const newLocationWithId = {
-      id: allLocations.length + 1,
-      name: newLocation.name,
-      address: newLocation.address,
-      manager: newLocation.manager,
-      items_count: 0,
-      total_value: 0
-    };
+    try {
+      // Insert location into Supabase
+      const { data, error } = await supabase
+        .from('locations')
+        .insert({
+          name: newLocation.name,
+          address: newLocation.address,
+          manager: newLocation.manager
+        })
+        .select();
+      
+      if (error) {
+        console.error("Error adding location:", error);
+        throw error;
+      }
+      
+      const newLocationWithId = {
+        id: data[0].id,
+        name: newLocation.name,
+        address: newLocation.address,
+        manager: newLocation.manager,
+        items_count: 0,
+        total_value: 0
+      };
+      
+      // Actualizar estado
+      setAllLocations([...allLocations, newLocationWithId]);
 
-    // Actualizar estado
-    setAllLocations([...allLocations, newLocationWithId]);
+      // Mostrar notificación de éxito
+      toast({
+        title: "Ubicación añadida",
+        description: `Se ha añadido ${newLocation.name} correctamente`,
+      });
 
-    // Mostrar notificación de éxito
-    toast({
-      title: "Ubicación añadida",
-      description: `Se ha añadido ${newLocation.name} correctamente`,
-    });
-
-    // Cerrar diálogo y resetear formulario
-    setShowAddLocationDialog(false);
-    setNewLocation({
-      name: '',
-      address: '',
-      manager: ''
-    });
+      // Cerrar diálogo y resetear formulario
+      setShowAddLocationDialog(false);
+      setNewLocation({
+        name: '',
+        address: '',
+        manager: ''
+      });
+    } catch (error) {
+      console.error("Error saving location:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la ubicación",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleUpdateLocation = () => {
+  const handleUpdateLocation = async () => {
     if (!currentLocation) return;
 
     // Validación básica
@@ -188,21 +224,45 @@ const AdminLocations = () => {
       return;
     }
 
-    // Actualizar la ubicación en el estado
-    const updatedLocations = allLocations.map(loc => 
-      loc.id === currentLocation.id ? currentLocation : loc
-    );
-    
-    setAllLocations(updatedLocations);
+    try {
+      // Update location in Supabase
+      const { error } = await supabase
+        .from('locations')
+        .update({
+          name: currentLocation.name,
+          address: currentLocation.address,
+          manager: currentLocation.manager
+        })
+        .eq('id', currentLocation.id);
+      
+      if (error) {
+        console.error("Error updating location:", error);
+        throw error;
+      }
+      
+      // Actualizar la ubicación en el estado
+      const updatedLocations = allLocations.map(loc => 
+        loc.id === currentLocation.id ? currentLocation : loc
+      );
+      
+      setAllLocations(updatedLocations);
 
-    // Mostrar notificación de éxito
-    toast({
-      title: "Ubicación actualizada",
-      description: `Se ha actualizado ${currentLocation.name} correctamente`,
-    });
+      // Mostrar notificación de éxito
+      toast({
+        title: "Ubicación actualizada",
+        description: `Se ha actualizado ${currentLocation.name} correctamente`,
+      });
 
-    // Cerrar diálogo
-    setShowEditLocationDialog(false);
+      // Cerrar diálogo
+      setShowEditLocationDialog(false);
+    } catch (error) {
+      console.error("Error updating location:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la ubicación",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDeleteLocation = async (locationId: number) => {
@@ -234,7 +294,18 @@ const AdminLocations = () => {
       
       // Confirmar eliminación
       if (confirm(`¿Está seguro que desea eliminar la ubicación ${locationToDelete?.name}?`)) {
-        // Eliminar ubicación
+        // Delete from Supabase
+        const { error } = await supabase
+          .from('locations')
+          .delete()
+          .eq('id', locationId);
+        
+        if (error) {
+          console.error("Error deleting location:", error);
+          throw error;
+        }
+        
+        // Eliminar ubicación del estado local
         const updatedLocations = allLocations.filter(loc => loc.id !== locationId);
         setAllLocations(updatedLocations);
         
