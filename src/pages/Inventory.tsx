@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import AddItemDialog from '@/components/inventory/AddItemDialog';
 import EditItemDialog from '@/components/inventory/EditItemDialog';
-import MoveItemDialog from '@/components/inventory/MoveItemDialog';
 import { exportToExcel, formatInventoryForExport } from '@/utils/exportToExcel';
 import { checkAndAlertLowStock } from '@/utils/inventory/lowStockAlert';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +16,6 @@ import {
   Plus, 
   Search,
   Filter,
-  ArrowUpDown,
   Download,
   DollarSign,
   MapPin,
@@ -65,8 +63,6 @@ const Inventory = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [showEditItemDialog, setShowEditItemDialog] = useState(false);
-  const [selectedMoveItem, setSelectedMoveItem] = useState<InventoryItem | null>(null);
-  const [showMoveItemDialog, setShowMoveItemDialog] = useState(false);
   
   const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
   const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
@@ -249,11 +245,6 @@ const Inventory = () => {
   const handleEditItem = (item: InventoryItem) => {
     setSelectedItem(item);
     setShowEditItemDialog(true);
-  };
-
-  const handleMoveItem = (item: InventoryItem) => {
-    setSelectedMoveItem(item);
-    setShowMoveItemDialog(true);
   };
 
   const handleExport = () => {
@@ -488,14 +479,6 @@ const Inventory = () => {
                 header: '',
                 cell: (item) => (
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleMoveItem(item)}
-                    >
-                      <ArrowUpDown className="h-3 w-3 mr-1" />
-                      Mover
-                    </Button>
                     {userRole === 'admin' && (
                       <Button 
                         variant="ghost" 
@@ -528,14 +511,6 @@ const Inventory = () => {
         locations={locations}
         item={selectedItem}
         onUpdateItem={handleUpdateItem}
-      />
-
-      <MoveItemDialog
-        open={showMoveItemDialog}
-        onOpenChange={setShowMoveItemDialog}
-        locations={locations}
-        item={selectedMoveItem}
-        onMoveComplete={fetchInventoryData}
       />
     </Layout>
   );
