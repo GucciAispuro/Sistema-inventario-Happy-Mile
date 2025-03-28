@@ -7,33 +7,25 @@ import MotionContainer from '@/components/ui/MotionContainer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Search,
   Filter,
   Edit,
-  Trash2
+  Trash2,
+  Plus
 } from 'lucide-react';
-
-// Updated mock data for items in Spanish
-const items = [
-  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario', description: 'Silla de oficina ergonómica con altura ajustable', min_stock: 5, lead_time: 14, unit: 'piezas' },
-  { id: 2, name: 'Papel de Impresora', category: 'Suministros de Oficina', description: 'Papel tamaño A4 para impresora, 500 hojas por paquete', min_stock: 10, lead_time: 7, unit: 'paquetes' },
-  { id: 3, name: 'Laptop', category: 'Electrónicos', description: 'Laptop empresarial con procesador i5, 8GB RAM, SSD de 256GB', min_stock: 3, lead_time: 21, unit: 'piezas' },
-  { id: 4, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo', description: 'Llanta de repuesto estándar para vehículos de la empresa', min_stock: 8, lead_time: 10, unit: 'piezas' },
-  { id: 5, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad', description: 'Chaleco de seguridad de alta visibilidad con tiras reflectantes', min_stock: 5, lead_time: 5, unit: 'piezas' },
-  { id: 6, name: 'Tóner de Impresora', category: 'Suministros de Oficina', description: 'Cartucho de tóner compatible con impresoras de oficina', min_stock: 2, lead_time: 7, unit: 'piezas' },
-  { id: 7, name: 'Kit de Primeros Auxilios', category: 'Equipo de Seguridad', description: 'Kit de primeros auxilios estándar para uso de emergencia', min_stock: 5, lead_time: 7, unit: 'kits' },
-  { id: 8, name: 'Lámpara de Escritorio', category: 'Mobiliario', description: 'Lámpara de escritorio LED con brillo ajustable', min_stock: 3, lead_time: 7, unit: 'piezas' },
-];
 
 const AdminItems = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredItems, setFilteredItems] = useState(items);
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [items, setItems] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     // Check authentication
@@ -51,7 +43,46 @@ const AdminItems = () => {
     }
     
     setUserRole(role);
+    fetchItems();
   }, [navigate]);
+
+  const fetchItems = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*');
+      
+      if (error) {
+        console.error("Error fetching items:", error);
+        throw error;
+      }
+      
+      // Format the data to match our expected structure
+      const formattedItems = data ? data.map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        description: '', // Currently not in the database
+        min_stock: item.min_stock || 5,
+        lead_time: 7, // Default value as it's not in the database
+        unit: 'piezas', // Default value as it's not in the database
+        location: item.location
+      })) : [];
+      
+      setItems(formattedItems);
+      setFilteredItems(formattedItems);
+    } catch (error) {
+      console.error("Error in fetchItems:", error);
+      toast({
+        title: "Error al cargar artículos",
+        description: "No se pudieron cargar los artículos del inventario",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   useEffect(() => {
     if (searchQuery.trim() === '' && categoryFilter === '') {
@@ -62,7 +93,7 @@ const AdminItems = () => {
         const matchesSearch = query === '' ? true : 
           item.name.toLowerCase().includes(query) ||
           item.category.toLowerCase().includes(query) ||
-          item.description.toLowerCase().includes(query);
+          (item.description && item.description.toLowerCase().includes(query));
         
         const matchesCategory = categoryFilter === '' ? true : 
           item.category === categoryFilter;
@@ -71,7 +102,7 @@ const AdminItems = () => {
       });
       setFilteredItems(filtered);
     }
-  }, [searchQuery, categoryFilter]);
+  }, [searchQuery, categoryFilter, items]);
 
   const handleEdit = (item) => {
     toast({
@@ -89,6 +120,14 @@ const AdminItems = () => {
 
   const toggleFilters = () => {
     setShowFilters(!showFilters);
+  };
+
+  const handleAddItem = () => {
+    toast({
+      title: "Añadir Artículo",
+      description: "Dirigiéndose a la página de inventario para añadir un artículo",
+    });
+    navigate('/inventory');
   };
 
   // Get unique categories for filter
@@ -113,6 +152,11 @@ const AdminItems = () => {
               <Button variant="outline" size="sm" onClick={toggleFilters}>
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrar
+              </Button>
+              
+              <Button size="sm" onClick={handleAddItem}>
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir Artículo
               </Button>
             </div>
           </div>
@@ -150,7 +194,7 @@ const AdminItems = () => {
                 header: 'Descripción',
                 cell: (item) => (
                   <div className="max-w-[250px] truncate text-muted-foreground">
-                    {item.description}
+                    {item.description || '---'}
                   </div>
                 )
               },
@@ -165,10 +209,10 @@ const AdminItems = () => {
                 key: 'lead_time', 
                 header: 'Tiempo de Entrega',
                 cell: (item) => (
-                  <div>{item.lead_time} días</div>
+                  <div>{item.lead_time || '---'} días</div>
                 )
               },
-              { key: 'unit', header: 'Unidad' },
+              { key: 'unit', header: 'Unidad', cell: (item) => <div>{item.unit || '---'}</div> },
               { 
                 key: 'actions', 
                 header: '',
@@ -186,6 +230,8 @@ const AdminItems = () => {
                 )
               },
             ]}
+            loading={isLoading}
+            emptyState="No hay artículos en el inventario"
           />
         </MotionContainer>
       </div>
