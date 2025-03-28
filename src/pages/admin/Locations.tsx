@@ -26,12 +26,21 @@ import {
 import { Label } from "@/components/ui/label";
 import { supabase } from '@/integrations/supabase/client';
 
+interface Location {
+  id: string;
+  name: string;
+  address: string | null;
+  manager: string | null;
+  items_count: number;
+  total_value: number;
+}
+
 const AdminLocations = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredLocations, setFilteredLocations] = useState([]);
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   const [totalOverallValue, setTotalOverallValue] = useState(0);
   const [showAddLocationDialog, setShowAddLocationDialog] = useState(false);
   const [showEditLocationDialog, setShowEditLocationDialog] = useState(false);
@@ -40,19 +49,17 @@ const AdminLocations = () => {
     address: '',
     manager: ''
   });
-  const [currentLocation, setCurrentLocation] = useState<any>(null);
-  const [allLocations, setAllLocations] = useState([]);
-  const [availableManagers, setAvailableManagers] = useState([]);
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [allLocations, setAllLocations] = useState<Location[]>([]);
+  const [availableManagers, setAvailableManagers] = useState<string[]>([]);
 
   useEffect(() => {
-    // Check authentication
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuthenticated) {
       navigate('/');
       return;
     }
     
-    // Check admin role
     const role = localStorage.getItem('userRole');
     if (role !== 'admin') {
       navigate('/dashboard');
@@ -80,7 +87,6 @@ const AdminLocations = () => {
         return;
       }
       
-      // Format locations with additional data (items_count and total_value will be 0 initially)
       const formattedLocations = data.map(location => ({
         id: location.id,
         name: location.name, 
@@ -114,7 +120,6 @@ const AdminLocations = () => {
         return;
       }
       
-      // Extract user names from the data
       const userNames = data.map(user => user.name);
       setAvailableManagers(userNames);
     } catch (error) {
@@ -135,7 +140,6 @@ const AdminLocations = () => {
       setFilteredLocations(filtered);
     }
     
-    // Calculate total overall value
     const total = allLocations.reduce((sum, location) => sum + location.total_value, 0);
     setTotalOverallValue(total);
   }, [searchQuery, allLocations]);
@@ -144,13 +148,12 @@ const AdminLocations = () => {
     setShowAddLocationDialog(true);
   };
 
-  const handleEditLocation = (location: any) => {
+  const handleEditLocation = (location: Location) => {
     setCurrentLocation(location);
     setShowEditLocationDialog(true);
   };
 
   const handleSaveLocation = async () => {
-    // Validación básica
     if (!newLocation.name || !newLocation.address || !newLocation.manager) {
       toast({
         title: "Error",
@@ -161,7 +164,6 @@ const AdminLocations = () => {
     }
 
     try {
-      // Insert location into Supabase
       const { data, error } = await supabase
         .from('locations')
         .insert({
@@ -185,16 +187,13 @@ const AdminLocations = () => {
         total_value: 0
       };
       
-      // Actualizar estado
       setAllLocations([...allLocations, newLocationWithId]);
 
-      // Mostrar notificación de éxito
       toast({
         title: "Ubicación añadida",
         description: `Se ha añadido ${newLocation.name} correctamente`,
       });
 
-      // Cerrar diálogo y resetear formulario
       setShowAddLocationDialog(false);
       setNewLocation({
         name: '',
@@ -214,7 +213,6 @@ const AdminLocations = () => {
   const handleUpdateLocation = async () => {
     if (!currentLocation) return;
 
-    // Validación básica
     if (!currentLocation.name || !currentLocation.address || !currentLocation.manager) {
       toast({
         title: "Error",
@@ -225,7 +223,6 @@ const AdminLocations = () => {
     }
 
     try {
-      // Update location in Supabase
       const { error } = await supabase
         .from('locations')
         .update({
@@ -240,20 +237,17 @@ const AdminLocations = () => {
         throw error;
       }
       
-      // Actualizar la ubicación en el estado
       const updatedLocations = allLocations.map(loc => 
         loc.id === currentLocation.id ? currentLocation : loc
       );
       
       setAllLocations(updatedLocations);
 
-      // Mostrar notificación de éxito
       toast({
         title: "Ubicación actualizada",
         description: `Se ha actualizado ${currentLocation.name} correctamente`,
       });
 
-      // Cerrar diálogo
       setShowEditLocationDialog(false);
     } catch (error) {
       console.error("Error updating location:", error);
@@ -265,13 +259,11 @@ const AdminLocations = () => {
     }
   };
 
-  const handleDeleteLocation = async (locationId: number) => {
-    // Obtener la ubicación a eliminar
+  const handleDeleteLocation = async (locationId: string) => {
     const locationToDelete = allLocations.find(loc => loc.id === locationId);
     if (!locationToDelete) return;
     
     try {
-      // Verificar si hay artículos en la ubicación directamente en la base de datos
       const { data: inventoryItems, error: inventoryError } = await supabase
         .from('inventory')
         .select('id')
@@ -282,7 +274,6 @@ const AdminLocations = () => {
         throw inventoryError;
       }
       
-      // Si hay artículos en la ubicación, mostrar un mensaje de error
       if (inventoryItems && inventoryItems.length > 0) {
         toast({
           title: "No se puede eliminar",
@@ -292,9 +283,7 @@ const AdminLocations = () => {
         return;
       }
       
-      // Confirmar eliminación
       if (confirm(`¿Está seguro que desea eliminar la ubicación ${locationToDelete?.name}?`)) {
-        // Delete from Supabase
         const { error } = await supabase
           .from('locations')
           .delete()
@@ -305,7 +294,6 @@ const AdminLocations = () => {
           throw error;
         }
         
-        // Eliminar ubicación del estado local
         const updatedLocations = allLocations.filter(loc => loc.id !== locationId);
         setAllLocations(updatedLocations);
         
@@ -428,7 +416,6 @@ const AdminLocations = () => {
         </MotionContainer>
       </div>
 
-      {/* Dialog para añadir ubicación */}
       <Dialog open={showAddLocationDialog} onOpenChange={setShowAddLocationDialog}>
         <DialogContent>
           <DialogHeader>
@@ -481,7 +468,6 @@ const AdminLocations = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para editar ubicación */}
       <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
         <DialogContent>
           <DialogHeader>
