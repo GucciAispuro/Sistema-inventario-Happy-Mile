@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import ItemForm, { ItemFormData } from './ItemForm';
 import { validateItemForm, calculateItemStatus } from '@/utils/inventory/validation';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddItemDialogProps {
   open: boolean;
@@ -46,6 +47,16 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
   
   // Estado para categorías personalizadas
   const [categories, setCategories] = useState(defaultCategories);
+  
+  // Set the first location as default if locations are available
+  useEffect(() => {
+    if (locations && locations.length > 0 && !newItem.location) {
+      setNewItem(prev => ({
+        ...prev,
+        location: locations[0]
+      }));
+    }
+  }, [locations]);
 
   const handleFieldChange = (field: string, value: string | number) => {
     setNewItem({

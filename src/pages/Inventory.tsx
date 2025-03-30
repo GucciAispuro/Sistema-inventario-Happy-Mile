@@ -66,11 +66,11 @@ const Inventory = () => {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [showEditItemDialog, setShowEditItemDialog] = useState(false);
   const [showDeleteItemDialog, setShowDeleteItemDialog] = useState(false);
-  
-  const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
+  const [allLocations, setAllLocations] = useState<string[]>([]);
+
   const categories = Array.from(new Set(inventoryItems.map(item => item.category)));
   const statuses = Array.from(new Set(inventoryItems.map(item => item.status || ''))).filter(Boolean);
-  
+
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuthenticated) {
@@ -82,6 +82,7 @@ const Inventory = () => {
     setUserRole(role);
 
     fetchInventoryData();
+    fetchLocations();
     
     const channel = supabase
       .channel('inventory-changes')
@@ -96,6 +97,30 @@ const Inventory = () => {
       supabase.removeChannel(channel);
     };
   }, [navigate]);
+
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('name');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        const locationNames = data.map(loc => loc.name);
+        setAllLocations(locationNames);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      toast({
+        title: "Error al cargar ubicaciones",
+        description: "No se pudieron cargar las ubicaciones disponibles",
+        variant: "destructive"
+      });
+    }
+  };
 
   const fetchInventoryData = async () => {
     setIsLoading(true);
@@ -138,7 +163,7 @@ const Inventory = () => {
       setIsLoading(false);
     }
   };
-  
+
   useEffect(() => {
     if (!inventoryItems) return;
     
@@ -383,7 +408,7 @@ const Inventory = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                    {locations.map(location => (
+                    {allLocations.map(location => (
                       <SelectItem key={location} value={location}>{location}</SelectItem>
                     ))}
                   </SelectContent>
@@ -556,14 +581,14 @@ const Inventory = () => {
       <AddItemDialog
         open={showAddItemDialog}
         onOpenChange={setShowAddItemDialog}
-        locations={locations}
+        locations={allLocations}
         onAddItem={handleAddItem}
       />
 
       <EditItemDialog
         open={showEditItemDialog}
         onOpenChange={setShowEditItemDialog}
-        locations={locations}
+        locations={allLocations}
         item={selectedItem}
         onUpdateItem={handleUpdateItem}
       />
