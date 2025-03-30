@@ -263,24 +263,26 @@ const Inventory = () => {
 
   const handleDeleteItem = async (id: string) => {
     try {
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('id')
-        .eq('item', selectedItem?.name || '')
-        .eq('location', selectedItem?.location || '')
-        .limit(1);
-      
-      if (transactionsError) {
-        throw transactionsError;
-      }
-      
-      if (transactionsData && transactionsData.length > 0) {
-        toast({
-          title: "No se puede eliminar",
-          description: "Este artículo tiene transacciones asociadas y no puede ser eliminado. Considere reducir su cantidad a cero en su lugar.",
-          variant: "destructive"
-        });
-        return;
+      if (selectedItem) {
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('item', selectedItem.name)
+          .eq('location', selectedItem.location)
+          .limit(1);
+        
+        if (transactionsError) {
+          throw transactionsError;
+        }
+        
+        if (transactionsData && transactionsData.length > 0) {
+          toast({
+            title: "No se puede eliminar",
+            description: "Este artículo tiene transacciones asociadas y no puede ser eliminado. Considere reducir su cantidad a cero en su lugar.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
       
       const { error } = await supabase
@@ -291,6 +293,8 @@ const Inventory = () => {
       if (error) {
         throw error;
       }
+      
+      await fetchInventoryData();
     } catch (error) {
       console.error('Error deleting item:', error);
       throw error;
