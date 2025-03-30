@@ -70,7 +70,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     setNewItem({...newItem, category});
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validación
@@ -85,29 +85,64 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       return;
     }
 
-    // Crear el nuevo artículo con valores calculados
-    const newItemWithDetails = {
-      ...newItem,
-      id: Date.now(), // ID temporal
-      status: calculateItemStatus(newItem.quantity, newItem.min_stock),
-      total_value: newItem.quantity * newItem.cost
-    };
-
-    // Enviar al componente padre
-    onAddItem(newItemWithDetails);
-    
-    // Resetear el formulario
-    setNewItem({
-      name: '',
-      category: '',
-      location: '',
-      quantity: 0,
-      min_stock: 0,
-      cost: 0
-    });
-    
-    // Cerrar el diálogo
-    onOpenChange(false);
+    try {
+      // Prepare the item data for database insertion
+      const itemForDb = {
+        name: newItem.name,
+        category: newItem.category,
+        location: newItem.location,
+        quantity: newItem.quantity,
+        min_stock: newItem.min_stock,
+        cost: newItem.cost
+      };
+      
+      // Insert the item into the database
+      const { data, error } = await supabase
+        .from('inventory')
+        .insert([itemForDb])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data && data.length > 0) {
+        // Create the new item with values calculated
+        const newItemWithDetails = {
+          ...data[0],
+          status: calculateItemStatus(newItem.quantity, newItem.min_stock),
+          total_value: newItem.quantity * newItem.cost
+        };
+        
+        // Send to parent component
+        onAddItem(newItemWithDetails);
+        
+        // Reset the form
+        setNewItem({
+          name: '',
+          category: '',
+          location: '',
+          quantity: 0,
+          min_stock: 0,
+          cost: 0
+        });
+        
+        // Close the dialog
+        onOpenChange(false);
+        
+        toast({
+          title: "Éxito",
+          description: `${newItem.name} ha sido añadido al inventario`,
+        });
+      }
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Error al añadir artículo",
+        description: "No se pudo agregar el artículo al inventario",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

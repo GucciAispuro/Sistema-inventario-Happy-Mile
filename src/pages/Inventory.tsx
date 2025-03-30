@@ -207,31 +207,17 @@ const Inventory = () => {
 
   const handleAddItem = async (newItem) => {
     try {
-      const { 
-        status, 
-        total_value, 
-        delivery_time, 
-        ...itemForDb 
-      } = newItem;
-      
-      const { data, error } = await supabase
-        .from('inventory')
-        .insert([itemForDb])
-        .select();
-      
-      if (error) {
-        throw error;
-      }
+      await fetchInventoryData();
       
       toast({
         title: "Artículo añadido",
         description: `${newItem.name} ha sido añadido al inventario`,
       });
     } catch (error) {
-      console.error('Error adding item:', error);
+      console.error('Error refreshing inventory data:', error);
       toast({
-        title: "Error al añadir artículo",
-        description: "No se pudo agregar el artículo al inventario",
+        title: "Error al actualizar inventario",
+        description: "No se pudo actualizar la vista del inventario",
         variant: "destructive"
       });
     }
