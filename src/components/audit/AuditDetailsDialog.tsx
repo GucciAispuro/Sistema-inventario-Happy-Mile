@@ -103,7 +103,7 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
                     'text-red-600'
                   }>
                     {item.difference && item.cost 
-                      ? formatCurrency(item.difference * (item.cost || 0))
+                      ? formatCurrency(item.difference * item.cost)
                       : '-'}
                   </TableCell>
                 </TableRow>
