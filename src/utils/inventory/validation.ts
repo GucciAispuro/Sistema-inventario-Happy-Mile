@@ -70,3 +70,23 @@ export const validateInventoryTransaction = (
 export const calculateDiscrepancyValue = (difference: number, costPerUnit: number): number => {
   return difference * costPerUnit;
 };
+
+export const validateLocation = async (location: string, supabaseClient: any): Promise<ValidationResult> => {
+  const errors: string[] = [];
+  
+  // Check if location exists in database
+  const { data, error } = await supabaseClient
+    .from('locations')
+    .select('name')
+    .eq('name', location)
+    .single();
+  
+  if (error || !data) {
+    errors.push(`La ubicación "${location}" no está registrada en el sistema. Por favor, registre la ubicación antes de realizar la auditoría.`);
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};

@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AuditItem } from './types';
+import { validateLocation } from '@/utils/inventory/validation';
 
 interface AuditPendingTabProps {
   inventoryItems: Array<AuditItem>;
@@ -39,6 +40,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [validatingLocation, setValidatingLocation] = useState(false);
   
   useEffect(() => {
     if (selectedLocation) {
@@ -72,6 +74,34 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
         return item;
       })
     );
+  };
+
+  const handleLocationSelect = async (location: string) => {
+    setValidatingLocation(true);
+    try {
+      // Validate if location exists in the database
+      const validation = await validateLocation(location, supabase);
+      
+      if (!validation.isValid) {
+        toast({
+          title: "Ubicación no registrada",
+          description: validation.errors[0],
+          variant: "destructive"
+        });
+        setSelectedLocation('');
+      } else {
+        setSelectedLocation(location);
+      }
+    } catch (err) {
+      console.error('Error validating location:', err);
+      toast({
+        title: "Error",
+        description: "No se pudo validar la ubicación. Intente nuevamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setValidatingLocation(false);
+    }
   };
 
   const handleSaveAudit = async () => {
@@ -117,7 +147,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
           location: item.location,
           system_quantity: item.system_quantity,
           actual_quantity: item.actual_quantity || 0,
-          difference: item.difference || 0
+          difference: item.difference || 0,
+          cost: item.cost || 0
         }));
         
         const { error: itemsError } = await supabase
@@ -163,7 +194,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
                   name: item.name,
                   category: item.category,
                   location: item.location,
-                  quantity: item.actual_quantity
+                  quantity: item.actual_quantity,
+                  cost: item.cost || 0
                 });
                 
               if (insertError) {
@@ -207,8 +239,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex-1 max-w-md">
             <label className="text-sm font-medium mb-2 block">Seleccionar Ubicación a Auditar</label>
-            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-              <SelectTrigger className="w-full">
+            <Select value={selectedLocation} onValueChange={handleLocationSelect}>
+              <SelectTrigger className="w-full" disabled={validatingLocation}>
                 <div className="flex items-center">
                   <MapPin className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Seleccionar ubicación" />

@@ -28,9 +28,6 @@ const inventoryItems = [
   { id: 10, name: 'Lámpara de Escritorio', category: 'Mobiliario', location: 'Culiacán', system_quantity: 6, actual_quantity: null, difference: null, last_audit: '2023-06-01', cost: 450 },
 ];
 
-// Get unique locations
-const locations = Array.from(new Set(inventoryItems.map(item => item.location)));
-
 const Audit = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,6 +35,8 @@ const Audit = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [auditHistory, setAuditHistory] = useState<AuditHistory[]>([]);
   const [loading, setLoading] = useState(false);
+  const [registeredLocations, setRegisteredLocations] = useState<string[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
   
   useEffect(() => {
     // Check authentication
@@ -53,7 +52,36 @@ const Audit = () => {
 
     // Load audit history when component mounts
     loadAuditHistory();
+    loadRegisteredLocations();
   }, [navigate]);
+  
+  // Load registered locations from database
+  const loadRegisteredLocations = async () => {
+    setLoadingLocations(true);
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('name')
+        .order('name');
+        
+      if (error) {
+        console.error('Error loading locations:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar las ubicaciones',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      const locationNames = data.map(loc => loc.name);
+      setRegisteredLocations(locationNames);
+    } catch (err) {
+      console.error('Error in loadRegisteredLocations:', err);
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
   
   // Load audit history from Supabase
   const loadAuditHistory = async () => {
@@ -87,6 +115,9 @@ const Audit = () => {
     }
   };
 
+  // Get all unique locations from the inventory items
+  const inventoryLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+
   return (
     <Layout title="Auditoría de Inventario">
       <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -99,7 +130,7 @@ const Audit = () => {
         <TabsContent value="pending" className="space-y-6">
           <AuditPendingTab 
             inventoryItems={inventoryItems}
-            locations={locations}
+            locations={registeredLocations.length > 0 ? registeredLocations : inventoryLocations}
             onAuditSaved={loadAuditHistory}
             setActiveTab={setActiveTab}
           />
