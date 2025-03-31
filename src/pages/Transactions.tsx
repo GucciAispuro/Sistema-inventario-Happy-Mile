@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -129,7 +128,6 @@ const Transactions = () => {
             toast({
               title: 'Advertencia',
               description: `Se encontraron ${missingItems.length} transacciones con artículos que no existen en el inventario actual.`,
-              // Changed from 'warning' to 'default' since 'warning' is not a supported variant
               variant: 'default'
             });
           }
@@ -162,7 +160,6 @@ const Transactions = () => {
 
   // Export transactions to CSV
   const handleExport = () => {
-    // Implement export logic
     toast({
       title: 'Export functionality coming soon!'
     });
@@ -201,36 +198,37 @@ const Transactions = () => {
         .eq('location', transactionData.location)
         .single();
       
-      if (inventoryError && inventoryError.code !== 'PGRST116') {
+      if (inventoryError) {
         console.error("Error checking inventory for item:", inventoryError);
         throw new Error(inventoryError.message);
       }
       
+      if (!inventoryData) {
+        throw new Error(`Inventory item ${transactionData.item} at ${transactionData.location} not found`);
+      }
+      
       // Adjust inventory quantity based on transaction type
-      // If we're deleting an 'IN' transaction, we need to subtract the quantity
-      // If we're deleting an 'OUT' transaction, we need to add the quantity back
-      if (inventoryData) {
-        const adjustmentQuantity = transactionData.quantity;
-        let newQuantity = inventoryData.quantity;
-        
-        if (transactionData.type === 'IN') {
-          // If deleting an 'IN' transaction, subtract quantity
-          newQuantity = Math.max(0, newQuantity - adjustmentQuantity);
-        } else {
-          // If deleting an 'OUT' transaction, add quantity back
-          newQuantity = newQuantity + adjustmentQuantity;
-        }
-        
-        // Update inventory with adjusted quantity
-        const { error: updateError } = await supabase
-          .from('inventory')
-          .update({ quantity: newQuantity })
-          .eq('id', inventoryData.id);
-        
-        if (updateError) {
-          console.error("Error updating inventory quantity:", updateError);
-          throw new Error(updateError.message);
-        }
+      let newQuantity = inventoryData.quantity;
+      
+      if (transactionData.type === 'IN') {
+        // If deleting an 'IN' transaction, subtract quantity
+        newQuantity = Math.max(0, newQuantity - transactionData.quantity);
+      } else if (transactionData.type === 'OUT') {
+        // If deleting an 'OUT' transaction, add quantity back
+        newQuantity = newQuantity + transactionData.quantity;
+      }
+      
+      console.log(`Adjusting inventory for ${transactionData.item}: Current=${inventoryData.quantity}, New=${newQuantity}, Transaction Type=${transactionData.type}`);
+      
+      // Update inventory with adjusted quantity
+      const { error: updateError } = await supabase
+        .from('inventory')
+        .update({ quantity: newQuantity })
+        .eq('id', inventoryData.id);
+      
+      if (updateError) {
+        console.error("Error updating inventory quantity:", updateError);
+        throw new Error(updateError.message);
       }
       
       // Delete the transaction
@@ -245,7 +243,7 @@ const Transactions = () => {
       }
       
       // Refresh the transactions list
-      refetch();
+      await refetch();
       
       toast({
         title: 'Transacción eliminada',
