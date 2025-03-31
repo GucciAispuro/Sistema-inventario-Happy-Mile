@@ -8,6 +8,7 @@ export interface AuditItem {
   actual_quantity: number | null;
   difference: number | null;
   last_audit?: string;
+  cost?: number | null;
 }
 
 export interface DatabaseAuditItem {
@@ -20,6 +21,7 @@ export interface DatabaseAuditItem {
   actual_quantity: number;
   difference: number;
   created_at: string | null;
+  cost?: number | null;
 }
 
 export interface AuditHistory {
@@ -31,4 +33,5 @@ export interface AuditHistory {
   discrepancies: number;
   items?: AuditItem[] | DatabaseAuditItem[];
   created_at?: string;
+  total_value_discrepancy?: number;
 }

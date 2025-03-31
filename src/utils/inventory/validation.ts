@@ -66,3 +66,7 @@ export const validateInventoryTransaction = (
     errors
   };
 };
+
+export const calculateDiscrepancyValue = (difference: number, costPerUnit: number): number => {
+  return difference * costPerUnit;
+};

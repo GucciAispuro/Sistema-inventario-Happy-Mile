@@ -56,7 +56,45 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
         throw error;
       }
       
-      const auditWithItems = { ...audit, items: data || [] };
+      // Get inventory items to get cost data
+      const auditItems = data || [];
+      const uniqueItemNames = [...new Set(auditItems.map(item => item.name))];
+      
+      // Fetch cost information for all items
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('name,cost')
+        .in('name', uniqueItemNames);
+      
+      if (inventoryError) {
+        console.error('Error loading inventory costs:', inventoryError);
+      }
+      
+      // Create a map of item names to costs
+      const costMap = new Map();
+      if (inventoryData) {
+        inventoryData.forEach(item => {
+          costMap.set(item.name, item.cost);
+        });
+      }
+      
+      // Add cost information to audit items
+      const enrichedItems = auditItems.map(item => ({
+        ...item,
+        cost: costMap.get(item.name) || 0
+      }));
+      
+      // Calculate total value discrepancy
+      const totalValueDiscrepancy = enrichedItems.reduce((total, item) => {
+        return total + (item.difference * (item.cost || 0));
+      }, 0);
+      
+      const auditWithItems = { 
+        ...audit, 
+        items: enrichedItems,
+        total_value_discrepancy: totalValueDiscrepancy
+      };
+      
       setSelectedAudit(auditWithItems);
       setDetailsOpen(true);
       

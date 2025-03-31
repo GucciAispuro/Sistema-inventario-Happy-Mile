@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useMemo } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -20,6 +21,26 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
   onOpenChange, 
   selectedAudit 
 }) => {
+  // Calculate total value discrepancy
+  const totalValueDiscrepancy = useMemo(() => {
+    if (!selectedAudit?.items?.length) return 0;
+    
+    return selectedAudit.items.reduce((total, item) => {
+      if (item.difference && item.cost) {
+        return total + (item.difference * (item.cost || 0));
+      }
+      return total;
+    }, 0);
+  }, [selectedAudit]);
+  
+  // Format currency
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    }).format(value);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -37,6 +58,14 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
                 <div>
                   <span className="font-medium">Auditor:</span> {selectedAudit.user_name}
                 </div>
+                {totalValueDiscrepancy !== 0 && (
+                  <div>
+                    <span className="font-medium">Valor de discrepancia:</span> 
+                    <span className={totalValueDiscrepancy > 0 ? 'text-green-600 ml-1' : 'text-red-600 ml-1'}>
+                      {formatCurrency(totalValueDiscrepancy)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </DialogDescription>
@@ -51,6 +80,7 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
                 <TableHead>Cant. Sistema</TableHead>
                 <TableHead>Cant. Real</TableHead>
                 <TableHead>Diferencia</TableHead>
+                <TableHead>Valor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -67,11 +97,20 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
                   }>
                     {item.difference !== null && item.difference > 0 ? `+${item.difference}` : item.difference}
                   </TableCell>
+                  <TableCell className={
+                    !item.difference || item.difference === 0 ? 'text-gray-600' : 
+                    item.difference > 0 ? 'text-green-600' : 
+                    'text-red-600'
+                  }>
+                    {item.difference && item.cost 
+                      ? formatCurrency(item.difference * (item.cost || 0))
+                      : '-'}
+                  </TableCell>
                 </TableRow>
               ))}
               {!selectedAudit?.items?.length && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-4">
+                  <TableCell colSpan={6} className="text-center py-4">
                     No hay detalles disponibles para esta auditoría
                   </TableCell>
                 </TableRow>
