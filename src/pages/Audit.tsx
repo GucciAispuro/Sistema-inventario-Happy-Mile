@@ -74,10 +74,20 @@ const Audit = () => {
         return;
       }
       
-      const locationNames = data.map(loc => loc.name);
-      setRegisteredLocations(locationNames);
+      if (data && data.length > 0) {
+        const locationNames = data.map(loc => loc.name);
+        setRegisteredLocations(locationNames);
+      } else {
+        console.log('No registered locations found in database');
+        // Use inventory locations as fallback
+        const uniqueLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+        setRegisteredLocations(uniqueLocations);
+      }
     } catch (err) {
       console.error('Error in loadRegisteredLocations:', err);
+      // Use inventory locations as fallback
+      const uniqueLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+      setRegisteredLocations(uniqueLocations);
     } finally {
       setLoadingLocations(false);
     }

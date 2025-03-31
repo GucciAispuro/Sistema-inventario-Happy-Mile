@@ -99,6 +99,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
         description: "No se pudo validar la ubicación. Intente nuevamente.",
         variant: "destructive"
       });
+      setSelectedLocation('');
     } finally {
       setValidatingLocation(false);
     }
@@ -117,6 +118,12 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
 
     setLoading(true);
     try {
+      // Validate location again before saving
+      const locationValidation = await validateLocation(selectedLocation, supabase);
+      if (!locationValidation.isValid) {
+        throw new Error(locationValidation.errors[0]);
+      }
+
       const userName = localStorage.getItem('userName') || 'Usuario';
       
       const auditData = {
@@ -219,7 +226,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
       console.error('Error in save audit:', err);
       toast({
         title: "Error al guardar",
-        description: "No se pudo guardar la auditoría. Intente nuevamente.",
+        description: err instanceof Error ? err.message : "No se pudo guardar la auditoría. Intente nuevamente.",
         variant: "destructive"
       });
     } finally {

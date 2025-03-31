@@ -86,7 +86,8 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       
       // Calculate total value discrepancy
       const totalValueDiscrepancy = enrichedItems.reduce((total, item) => {
-        return total + (item.difference * (item.cost || 0));
+        const itemCost = item.cost || 0;
+        return total + (item.difference * itemCost);
       }, 0);
       
       const auditWithItems = { 
