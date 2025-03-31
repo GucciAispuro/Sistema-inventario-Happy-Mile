@@ -74,24 +74,48 @@ export const calculateDiscrepancyValue = (difference: number, costPerUnit: numbe
 export const validateLocation = async (location: string, supabaseClient: any): Promise<ValidationResult> => {
   const errors: string[] = [];
   
+  if (!location || location.trim() === '') {
+    errors.push("Debe seleccionar una ubicación");
+    return {
+      isValid: false,
+      errors
+    };
+  }
+  
   try {
     // Check if location exists in database
     const { data, error } = await supabaseClient
       .from('locations')
       .select('name')
-      .eq('name', location)
-      .single();
+      .eq('name', location);
     
-    if (error || !data) {
-      errors.push(`La ubicación "${location}" no está registrada en el sistema. Por favor, registre la ubicación antes de realizar la auditoría.`);
+    if (error) {
+      console.error('Error al consultar ubicaciones:', error);
+      errors.push('Error al validar la ubicación. Por favor intente nuevamente.');
+      return {
+        isValid: false,
+        errors
+      };
     }
+    
+    if (!data || data.length === 0) {
+      errors.push(`La ubicación "${location}" no está registrada en el sistema. Por favor, registre la ubicación antes de realizar la auditoría.`);
+      return {
+        isValid: false,
+        errors
+      };
+    }
+    
+    return {
+      isValid: true,
+      errors: []
+    };
   } catch (err) {
     console.error('Error en validateLocation:', err);
     errors.push('Error al validar la ubicación. Por favor intente nuevamente.');
+    return {
+      isValid: false,
+      errors
+    };
   }
-  
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
 };

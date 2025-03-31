@@ -59,6 +59,7 @@ const Audit = () => {
   const loadRegisteredLocations = async () => {
     setLoadingLocations(true);
     try {
+      console.log('Loading registered locations from database...');
       const { data, error } = await supabase
         .from('locations')
         .select('name')
@@ -71,22 +72,30 @@ const Audit = () => {
           description: 'No se pudieron cargar las ubicaciones',
           variant: 'destructive'
         });
+        
+        // Use inventory locations as fallback
+        const uniqueLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+        console.log('Using inventory locations as fallback:', uniqueLocations);
+        setRegisteredLocations(uniqueLocations);
         return;
       }
       
       if (data && data.length > 0) {
         const locationNames = data.map(loc => loc.name);
+        console.log('Registered locations loaded:', locationNames);
         setRegisteredLocations(locationNames);
       } else {
         console.log('No registered locations found in database');
         // Use inventory locations as fallback
         const uniqueLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+        console.log('Using inventory locations as fallback:', uniqueLocations);
         setRegisteredLocations(uniqueLocations);
       }
     } catch (err) {
       console.error('Error in loadRegisteredLocations:', err);
       // Use inventory locations as fallback
       const uniqueLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+      console.log('Using inventory locations as fallback after error:', uniqueLocations);
       setRegisteredLocations(uniqueLocations);
     } finally {
       setLoadingLocations(false);
@@ -97,6 +106,7 @@ const Audit = () => {
   const loadAuditHistory = async () => {
     setLoading(true);
     try {
+      console.log('Loading audit history...');
       const { data, error } = await supabase
         .from('audits')
         .select('*')
@@ -112,6 +122,7 @@ const Audit = () => {
         return;
       }
 
+      console.log('Audit history loaded:', data);
       setAuditHistory(data || []);
     } catch (err) {
       console.error('Error in loadAuditHistory:', err);
@@ -127,6 +138,9 @@ const Audit = () => {
 
   // Get all unique locations from the inventory items
   const inventoryLocations = Array.from(new Set(inventoryItems.map(item => item.location)));
+  
+  console.log('Current registered locations:', registeredLocations);
+  console.log('Inventory locations as fallback:', inventoryLocations);
 
   return (
     <Layout title="Auditoría de Inventario">

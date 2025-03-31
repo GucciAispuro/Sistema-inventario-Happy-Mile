@@ -77,6 +77,11 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
   };
 
   const handleLocationSelect = async (location: string) => {
+    if (!location) {
+      setSelectedLocation('');
+      return;
+    }
+    
     setValidatingLocation(true);
     try {
       // Validate if location exists in the database
@@ -106,6 +111,15 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
   };
 
   const handleSaveAudit = async () => {
+    if (!selectedLocation) {
+      toast({
+        title: "Ubicación requerida",
+        description: "Por favor seleccione una ubicación antes de guardar la auditoría",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const uncountedItems = auditItems.filter(item => item.actual_quantity === null);
     if (uncountedItems.length > 0) {
       toast({
@@ -126,13 +140,20 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
 
       const userName = localStorage.getItem('userName') || 'Usuario';
       
+      // Count discrepancies (items with difference not equal to 0)
+      const discrepanciesCount = auditItems.filter(item => 
+        item.difference !== null && item.difference !== 0
+      ).length;
+      
       const auditData = {
         location: selectedLocation,
         date: new Date().toISOString().substring(0, 10),
         user_name: userName,
         items_count: auditItems.length,
-        discrepancies: auditItems.filter(item => item.difference !== 0).length,
+        discrepancies: discrepanciesCount,
       };
+      
+      console.log('Saving audit with data:', auditData);
       
       const { data, error } = await supabase
         .from('audits')
@@ -146,6 +167,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
       
       if (data && data.length > 0) {
         const auditId = data[0].id;
+        console.log('Audit saved with ID:', auditId);
         
         const auditItemsData = auditItems.map(item => ({
           audit_id: auditId,
@@ -158,6 +180,8 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
           cost: item.cost || 0
         }));
         
+        console.log('Saving audit items:', auditItemsData);
+        
         const { error: itemsError } = await supabase
           .from('audit_items')
           .insert(auditItemsData);
@@ -167,47 +191,54 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
           throw itemsError;
         }
         
+        console.log('Audit items saved successfully');
+        
         // Update inventory quantities based on audit results
         for (const item of auditItems) {
           if (item.actual_quantity !== null) {
-            // Find inventory item in database
-            const { data: inventoryData, error: inventoryError } = await supabase
-              .from('inventory')
-              .select('*')
-              .eq('name', item.name)
-              .eq('location', item.location)
-              .single();
+            try {
+              // Find inventory item in database
+              const { data: inventoryData, error: inventoryError } = await supabase
+                .from('inventory')
+                .select('*')
+                .eq('name', item.name)
+                .eq('location', item.location);
+                
+              if (inventoryError) {
+                console.error('Error finding inventory item:', inventoryError);
+                continue;
+              }
               
-            if (inventoryError && inventoryError.code !== 'PGRST116') {
-              console.error('Error finding inventory item:', inventoryError);
-              continue;
-            }
-            
-            if (inventoryData) {
-              // Update inventory with the actual quantity from audit
-              const { error: updateError } = await supabase
-                .from('inventory')
-                .update({ quantity: item.actual_quantity })
-                .eq('id', inventoryData.id);
-                
-              if (updateError) {
-                console.error('Error updating inventory quantity:', updateError);
+              if (inventoryData && inventoryData.length > 0) {
+                const inventoryItem = inventoryData[0];
+                // Update inventory with the actual quantity from audit
+                const { error: updateError } = await supabase
+                  .from('inventory')
+                  .update({ quantity: item.actual_quantity })
+                  .eq('id', inventoryItem.id);
+                  
+                if (updateError) {
+                  console.error('Error updating inventory quantity:', updateError);
+                }
+              } else {
+                // If item doesn't exist in inventory, create it
+                const { error: insertError } = await supabase
+                  .from('inventory')
+                  .insert({
+                    name: item.name,
+                    category: item.category,
+                    location: item.location,
+                    quantity: item.actual_quantity,
+                    cost: item.cost || 0,
+                    min_stock: 5 // Default min stock
+                  });
+                  
+                if (insertError) {
+                  console.error('Error creating inventory item:', insertError);
+                }
               }
-            } else {
-              // If item doesn't exist in inventory, create it
-              const { error: insertError } = await supabase
-                .from('inventory')
-                .insert({
-                  name: item.name,
-                  category: item.category,
-                  location: item.location,
-                  quantity: item.actual_quantity,
-                  cost: item.cost || 0
-                });
-                
-              if (insertError) {
-                console.error('Error creating inventory item:', insertError);
-              }
+            } catch (err) {
+              console.error('Error processing inventory update for item:', item.name, err);
             }
           }
         }
