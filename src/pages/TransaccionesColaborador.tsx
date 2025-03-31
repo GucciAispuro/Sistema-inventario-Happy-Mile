@@ -134,24 +134,7 @@ const TransaccionesColaborador = () => {
       
       console.log("About to insert transaction:", transactionData);
       
-      // Insert transaction into Supabase
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert(transactionData);
-      
-      if (error) {
-        console.error("Error saving transaction:", error);
-        toast({
-          title: "Error al guardar",
-          description: error.message,
-          variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Update inventory based on transaction type
-      // First check if item exists in inventory for this location
+      // First, check if item exists in inventory for this location
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
         .select('*')
@@ -159,6 +142,7 @@ const TransaccionesColaborador = () => {
         .eq('location', selectedLocation.name)
         .single();
 
+      // Handle specific "no rows returned" error separately from other errors
       if (inventoryError && inventoryError.code !== 'PGRST116') {
         console.error("Error checking inventory:", inventoryError);
         toast({
@@ -166,55 +150,74 @@ const TransaccionesColaborador = () => {
           description: inventoryError.message,
           variant: "destructive"
         });
+        setIsSubmitting(false);
+        return;
       }
 
-      if (inventoryData) {
-        // Item exists, update quantity
-        const newQuantity = values.type === 'IN' 
-          ? inventoryData.quantity + values.quantity
-          : Math.max(0, inventoryData.quantity - values.quantity);
+      // Calculate new inventory quantity based on transaction type
+      const newQuantity = values.type === 'IN' 
+        ? (inventoryData?.quantity || 0) + values.quantity
+        : Math.max(0, (inventoryData?.quantity || 0) - values.quantity);
 
-        const { error: updateError } = await supabase
+      // For OUT transactions, ensure there's enough inventory
+      if (values.type === 'OUT' && (!inventoryData || inventoryData.quantity < values.quantity)) {
+        toast({
+          title: "Inventario insuficiente",
+          description: `No hay suficientes unidades de ${selectedItem.name} en ${selectedLocation.name}`,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Update or insert inventory based on whether it exists
+      let inventoryUpdateResult;
+      if (inventoryData) {
+        // Update existing inventory
+        console.log(`Updating inventory for ${selectedItem.name} at ${selectedLocation.name}: Current=${inventoryData.quantity}, New=${newQuantity}`);
+        inventoryUpdateResult = await supabase
           .from('inventory')
           .update({ quantity: newQuantity })
           .eq('id', inventoryData.id);
-
-        if (updateError) {
-          console.error("Error updating inventory:", updateError);
-          toast({
-            title: "Error al actualizar inventario",
-            description: updateError.message,
-            variant: "destructive"
+      } else if (values.type === 'IN') {
+        // Create new inventory entry for IN transactions only
+        console.log(`Creating new inventory for ${selectedItem.name} at ${selectedLocation.name} with quantity ${values.quantity}`);
+        inventoryUpdateResult = await supabase
+          .from('inventory')
+          .insert({
+            name: selectedItem.name,
+            category: selectedItem.category,
+            location: selectedLocation.name,
+            quantity: values.quantity
           });
-        }
-      } else {
-        // Item doesn't exist in this location, create it if it's an IN transaction
-        if (values.type === 'IN') {
-          const { error: insertError } = await supabase
-            .from('inventory')
-            .insert({
-              name: selectedItem.name,
-              category: selectedItem.category,
-              location: selectedLocation.name,
-              quantity: values.quantity
-            });
+      }
 
-          if (insertError) {
-            console.error("Error creating inventory item:", insertError);
-            toast({
-              title: "Error al crear item en inventario",
-              description: insertError.message,
-              variant: "destructive"
-            });
-          }
-        } else {
-          console.warn("Attempted to remove items from non-existent inventory entry");
-          toast({
-            title: "Advertencia",
-            description: "No existe inventario para este artículo en esta ubicación",
-            variant: "destructive"
-          });
-        }
+      // Check for inventory update errors
+      if (inventoryUpdateResult?.error) {
+        console.error("Error updating inventory:", inventoryUpdateResult.error);
+        toast({
+          title: values.type === 'IN' ? "Error al crear item en inventario" : "Error al actualizar inventario",
+          description: inventoryUpdateResult.error.message,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Only insert transaction if inventory update was successful
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(transactionData);
+      
+      if (error) {
+        console.error("Error saving transaction:", error);
+        toast({
+          title: "Error al guardar transacción",
+          description: error.message,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
       }
       
       // Show success message
