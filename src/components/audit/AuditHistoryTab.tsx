@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
@@ -60,7 +61,8 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       
       // Calculate total value discrepancy
       const totalValueDiscrepancy = auditItems.reduce((total, item) => {
-        const itemCost = item.cost || 0;
+        // Asegurarnos que item.cost siempre esté definido, si no lo está, usar 0
+        const itemCost = item.cost !== undefined && item.cost !== null ? item.cost : 0;
         return total + ((item.difference || 0) * itemCost);
       }, 0);
       

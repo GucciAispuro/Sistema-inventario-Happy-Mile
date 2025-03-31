@@ -26,8 +26,8 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
     if (!selectedAudit?.items || selectedAudit.items.length === 0) return 0;
     
     return selectedAudit.items.reduce((total, item) => {
-      if (item.difference && item.cost) {
-        return total + (item.difference * (item.cost || 0));
+      if (item.difference && item.cost !== undefined) {
+        return total + (item.difference * item.cost);
       }
       return total;
     }, 0);
@@ -102,7 +102,7 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
                     item.difference > 0 ? 'text-green-600' : 
                     'text-red-600'
                   }>
-                    {item.difference && item.cost 
+                    {item.difference !== undefined && item.cost !== undefined 
                       ? formatCurrency(item.difference * item.cost)
                       : '-'}
                   </TableCell>
