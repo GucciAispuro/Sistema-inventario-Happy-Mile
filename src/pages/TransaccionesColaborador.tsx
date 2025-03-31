@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import MotionContainer from '@/components/ui/MotionContainer';
@@ -31,27 +31,29 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Example data for items and locations
-const itemsData = [
-  { id: 1, name: 'Silla de Oficina', category: 'Mobiliario' },
-  { id: 2, name: 'Papel de Impresora', category: 'Suministros de Oficina' },
-  { id: 3, name: 'Laptop', category: 'Electrónicos' },
-  { id: 4, name: 'Llanta de Repuesto', category: 'Piezas de Vehículo' },
-  { id: 5, name: 'Chaleco de Seguridad', category: 'Equipo de Seguridad' },
-];
+// Define inventory item type
+type InventoryItem = {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  quantity: number;
+};
 
-const locationsData = [
-  { id: 1, name: 'CDMX', address: 'Ciudad de México' },
-  { id: 2, name: 'Monterrey', address: 'Nuevo León' },
-  { id: 3, name: 'Guadalajara', address: 'Jalisco' },
-  { id: 4, name: 'Culiacán', address: 'Sinaloa' },
-];
+// Define location type
+type Location = {
+  id: string;
+  name: string;
+  address: string;
+};
 
 const TransaccionesColaborador = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableItems, setAvailableItems] = useState<InventoryItem[]>([]);
+  const [selectedLocationItems, setSelectedLocationItems] = useState<InventoryItem[]>([]);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -62,6 +64,64 @@ const TransaccionesColaborador = () => {
       quantity: 1,
       notes: '',
     },
+  });
+  
+  // Fetch all inventory items
+  const { data: inventoryItems = [], isLoading: isLoadingInventory } = useQuery({
+    queryKey: ['inventory-items'],
+    queryFn: async () => {
+      try {
+        console.log("Fetching inventory items for transaction form");
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('*');
+
+        if (error) {
+          console.error("Error fetching inventory items:", error);
+          toast({
+            title: 'Error al cargar inventario',
+            description: error.message,
+            variant: 'destructive'
+          });
+          return [];
+        }
+
+        console.log("Fetched inventory items:", data);
+        return data as InventoryItem[];
+      } catch (err) {
+        console.error("Error in inventory query:", err);
+        return [];
+      }
+    }
+  });
+  
+  // Fetch all locations
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      try {
+        console.log("Fetching locations for transaction form");
+        const { data, error } = await supabase
+          .from('locations')
+          .select('*');
+
+        if (error) {
+          console.error("Error fetching locations:", error);
+          toast({
+            title: 'Error al cargar ubicaciones',
+            description: error.message,
+            variant: 'destructive'
+          });
+          return [];
+        }
+
+        console.log("Fetched locations:", data);
+        return data as Location[];
+      } catch (err) {
+        console.error("Error in locations query:", err);
+        return [];
+      }
+    }
   });
   
   // Fetch recent transactions for this user
@@ -95,32 +155,157 @@ const TransaccionesColaborador = () => {
     }
   });
   
+  // Watch for location changes to filter available items
+  useEffect(() => {
+    const locationValue = form.watch('location');
+    const selectedLocation = locations.find(loc => loc.id === locationValue);
+    
+    if (selectedLocation) {
+      console.log(`Location selected: ${selectedLocation.name}`);
+      
+      // Filter items by location
+      const itemsInLocation = inventoryItems.filter(item => 
+        item.location === selectedLocation.name
+      );
+      
+      console.log(`Found ${itemsInLocation.length} items in ${selectedLocation.name}`);
+      setSelectedLocationItems(itemsInLocation);
+    } else {
+      setSelectedLocationItems([]);
+    }
+  }, [form.watch('location'), locations, inventoryItems]);
+  
+  // Reset item selection when location changes
+  useEffect(() => {
+    form.setValue('item', '');
+  }, [form.watch('location')]);
+  
+  // Ensure quantity doesn't exceed available inventory for OUT transactions
+  useEffect(() => {
+    const transactionType = form.watch('type');
+    const itemId = form.watch('item');
+    const quantity = form.watch('quantity');
+    
+    if (transactionType === 'OUT' && itemId) {
+      const selectedItem = selectedLocationItems.find(item => item.id === itemId);
+      
+      if (selectedItem && quantity > selectedItem.quantity) {
+        form.setValue('quantity', selectedItem.quantity);
+        toast({
+          title: 'Cantidad ajustada',
+          description: `Solo hay ${selectedItem.quantity} unidades disponibles de este artículo`,
+        });
+      }
+    }
+  }, [form.watch('type'), form.watch('item'), form.watch('quantity')]);
+  
   const onSubmit = async (values: FormValues) => {
     console.log("Datos enviados:", values);
     setIsSubmitting(true);
     
     try {
       // Get item and location details
-      const selectedItem = itemsData.find(i => i.id.toString() === values.item);
-      const selectedLocation = locationsData.find(l => l.id.toString() === values.location);
+      const selectedItem = selectedLocationItems.find(item => item.id === values.item);
+      const selectedLocation = locations.find(loc => loc.id === values.location);
       
-      if (!selectedItem || !selectedLocation) {
+      if (!selectedLocation) {
         toast({
           title: "Error",
-          description: "Seleccione un artículo y ubicación válidos.",
+          description: "Seleccione una ubicación válida.",
           variant: "destructive"
         });
         setIsSubmitting(false);
         return;
       }
       
+      if (values.type === 'OUT' && !selectedItem) {
+        toast({
+          title: "Error",
+          description: "El artículo seleccionado no existe en esta ubicación.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // For OUT transactions, ensure there's enough inventory
+      if (values.type === 'OUT') {
+        if (!selectedItem) {
+          toast({
+            title: "Error",
+            description: "No se puede encontrar el artículo en la ubicación seleccionada.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        
+        if (selectedItem.quantity < values.quantity) {
+          toast({
+            title: "Inventario insuficiente",
+            description: `Solo hay ${selectedItem.quantity} unidades disponibles de ${selectedItem.name}`,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       // Generate a date in YYYY-MM-DD format
       const formattedDate = new Date().toISOString().split('T')[0];
       
+      // For IN transactions with a new item (not in inventory yet)
+      let itemName = '';
+      let itemCategory = '';
+      
+      if (values.type === 'IN' && !selectedItem) {
+        // For new items being added, we need to get details from the form
+        // In a real app, you would have additional fields for category and item name
+        // For now, we'll use a default category and prompt the user
+        const newItemName = prompt("Este artículo no existe en esta ubicación. Por favor, ingrese el nombre del artículo:");
+        
+        if (!newItemName || newItemName.trim() === '') {
+          toast({
+            title: "Error",
+            description: "Debe ingresar un nombre para el nuevo artículo.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        
+        const newItemCategory = prompt("Por favor, ingrese la categoría del artículo:");
+        
+        if (!newItemCategory || newItemCategory.trim() === '') {
+          toast({
+            title: "Error",
+            description: "Debe ingresar una categoría para el nuevo artículo.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        
+        itemName = newItemName.trim();
+        itemCategory = newItemCategory.trim();
+      } else if (selectedItem) {
+        // Use existing item details
+        itemName = selectedItem.name;
+        itemCategory = selectedItem.category;
+      } else {
+        toast({
+          title: "Error",
+          description: "Información del artículo incompleta.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Prepare transaction data
       const transactionData = {
-        item: selectedItem.name,
-        category: selectedItem.category,
+        item: itemName,
+        category: itemCategory,
         location: selectedLocation.name,
         type: values.type,
         quantity: values.quantity,
@@ -138,11 +323,12 @@ const TransaccionesColaborador = () => {
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
         .select('*')
-        .eq('name', selectedItem.name)
-        .eq('location', selectedLocation.name)
-        .single();
+        .eq('name', itemName)
+        .eq('location', selectedLocation.name);
 
-      // Handle specific "no rows returned" error separately from other errors
+      console.log("Inventory check result:", { inventoryData, inventoryError });
+      
+      // Handle errors other than "no rows returned"
       if (inventoryError && inventoryError.code !== 'PGRST116') {
         console.error("Error checking inventory:", inventoryError);
         toast({
@@ -155,41 +341,43 @@ const TransaccionesColaborador = () => {
       }
 
       // Calculate new inventory quantity based on transaction type
+      let inventoryItem = inventoryData && inventoryData.length > 0 ? inventoryData[0] : null;
+      const currentQuantity = inventoryItem ? inventoryItem.quantity : 0;
+      
       const newQuantity = values.type === 'IN' 
-        ? (inventoryData?.quantity || 0) + values.quantity
-        : Math.max(0, (inventoryData?.quantity || 0) - values.quantity);
+        ? currentQuantity + values.quantity
+        : Math.max(0, currentQuantity - values.quantity);
 
-      // For OUT transactions, ensure there's enough inventory
-      if (values.type === 'OUT' && (!inventoryData || inventoryData.quantity < values.quantity)) {
+      console.log(`Inventory calculation: Current=${currentQuantity}, Transaction=${values.quantity}, New=${newQuantity}`);
+
+      // Update or insert inventory based on whether it exists
+      let inventoryUpdateResult;
+      if (inventoryItem) {
+        // Update existing inventory
+        console.log(`Updating inventory for ${itemName} at ${selectedLocation.name}: Current=${inventoryItem.quantity}, New=${newQuantity}`);
+        inventoryUpdateResult = await supabase
+          .from('inventory')
+          .update({ quantity: newQuantity })
+          .eq('id', inventoryItem.id);
+      } else if (values.type === 'IN') {
+        // Create new inventory entry for IN transactions only
+        console.log(`Creating new inventory for ${itemName} at ${selectedLocation.name} with quantity ${values.quantity}`);
+        inventoryUpdateResult = await supabase
+          .from('inventory')
+          .insert({
+            name: itemName,
+            category: itemCategory,
+            location: selectedLocation.name,
+            quantity: values.quantity
+          });
+      } else {
         toast({
-          title: "Inventario insuficiente",
-          description: `No hay suficientes unidades de ${selectedItem.name} en ${selectedLocation.name}`,
+          title: "Error",
+          description: "No se puede realizar una salida de un artículo que no existe en el inventario.",
           variant: "destructive"
         });
         setIsSubmitting(false);
         return;
-      }
-
-      // Update or insert inventory based on whether it exists
-      let inventoryUpdateResult;
-      if (inventoryData) {
-        // Update existing inventory
-        console.log(`Updating inventory for ${selectedItem.name} at ${selectedLocation.name}: Current=${inventoryData.quantity}, New=${newQuantity}`);
-        inventoryUpdateResult = await supabase
-          .from('inventory')
-          .update({ quantity: newQuantity })
-          .eq('id', inventoryData.id);
-      } else if (values.type === 'IN') {
-        // Create new inventory entry for IN transactions only
-        console.log(`Creating new inventory for ${selectedItem.name} at ${selectedLocation.name} with quantity ${values.quantity}`);
-        inventoryUpdateResult = await supabase
-          .from('inventory')
-          .insert({
-            name: selectedItem.name,
-            category: selectedItem.category,
-            location: selectedLocation.name,
-            quantity: values.quantity
-          });
       }
 
       // Check for inventory update errors
@@ -237,7 +425,7 @@ const TransaccionesColaborador = () => {
       
       setFilePreview(null);
       
-      // Refetch transactions to update the list
+      // Refetch data
       refetch();
     } catch (err) {
       console.error("Error processing transaction:", err);
@@ -287,30 +475,6 @@ const TransaccionesColaborador = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="item"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Artículo</FormLabel>
-                          <FormControl>
-                            <select 
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              {...field}
-                            >
-                              <option value="">Seleccionar artículo</option>
-                              {itemsData.map(item => (
-                                <option key={item.id} value={item.id}>
-                                  {item.name} ({item.category})
-                                </option>
-                              ))}
-                            </select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
                       name="location"
                       render={({ field }) => (
                         <FormItem>
@@ -319,9 +483,10 @@ const TransaccionesColaborador = () => {
                             <select 
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                               {...field}
+                              disabled={isLoadingLocations}
                             >
                               <option value="">Seleccionar ubicación</option>
-                              {locationsData.map(location => (
+                              {locations.map(location => (
                                 <option key={location.id} value={location.id}>
                                   {location.name}
                                 </option>
@@ -332,9 +497,7 @@ const TransaccionesColaborador = () => {
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
                     <FormField
                       control={form.control}
                       name="type"
@@ -374,6 +537,46 @@ const TransaccionesColaborador = () => {
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="item"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Artículo</FormLabel>
+                          <FormControl>
+                            <select 
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              {...field}
+                              disabled={!form.watch('location') || isLoadingInventory}
+                            >
+                              <option value="">
+                                {!form.watch('location') 
+                                  ? "Seleccione ubicación primero" 
+                                  : form.watch('type') === 'OUT' && selectedLocationItems.length === 0
+                                    ? "No hay artículos en esta ubicación"
+                                    : "Seleccionar artículo"}
+                              </option>
+                              
+                              {/* Show existing items for the selected location */}
+                              {selectedLocationItems.map(item => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name} ({item.category}) - Disponible: {item.quantity}
+                                </option>
+                              ))}
+                              
+                              {/* Add option for new item if it's an IN transaction */}
+                              {form.watch('type') === 'IN' && form.watch('location') && (
+                                <option value="new">+ Agregar nuevo artículo</option>
+                              )}
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <FormField
                       control={form.control}
@@ -385,8 +588,22 @@ const TransaccionesColaborador = () => {
                             <Input
                               type="number"
                               min="1"
+                              max={form.watch('type') === 'OUT' && form.watch('item') 
+                                ? selectedLocationItems.find(i => i.id === form.watch('item'))?.quantity || 1 
+                                : undefined}
                               placeholder="Cantidad"
                               {...field}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                if (form.watch('type') === 'OUT' && form.watch('item')) {
+                                  const selectedItem = selectedLocationItems.find(i => i.id === form.watch('item'));
+                                  if (selectedItem && value > selectedItem.quantity) {
+                                    field.onChange(selectedItem.quantity);
+                                    return;
+                                  }
+                                }
+                                field.onChange(e);
+                              }}
                             />
                           </FormControl>
                           <FormMessage />

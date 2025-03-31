@@ -44,3 +44,24 @@ export const calculateItemStatus = (quantity: number, min_stock: number): 'Norma
   if (quantity < min_stock) return 'Bajo';
   return 'Normal';
 };
+
+export const validateInventoryTransaction = (
+  transactionType: 'IN' | 'OUT', 
+  requestedQuantity: number,
+  availableQuantity: number
+): ValidationResult => {
+  const errors: string[] = [];
+  
+  if (requestedQuantity <= 0) {
+    errors.push("La cantidad debe ser mayor que cero");
+  }
+  
+  if (transactionType === 'OUT' && requestedQuantity > availableQuantity) {
+    errors.push(`No hay suficientes unidades disponibles. Disponible: ${availableQuantity}`);
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};

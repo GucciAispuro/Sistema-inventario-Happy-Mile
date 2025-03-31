@@ -89,6 +89,8 @@ const MoveItemDialog: React.FC<MoveItemDialogProps> = ({
     setIsLoading(true);
 
     try {
+      console.log(`Moving ${moveQuantity} units of ${item.name} from ${item.location} to ${targetLocation}`);
+      
       // 1. Check if item exists in target location
       const { data: existingItems, error: fetchError } = await supabase
         .from('inventory')
@@ -97,7 +99,12 @@ const MoveItemDialog: React.FC<MoveItemDialogProps> = ({
         .eq('category', item.category)
         .eq('location', targetLocation);
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error("Error checking target location inventory:", fetchError);
+        throw fetchError;
+      }
+      
+      console.log("Target location inventory check result:", existingItems);
       
       // Begin transaction - try to add item to target location
       let targetItemId: string | null = null;
@@ -107,6 +114,8 @@ const MoveItemDialog: React.FC<MoveItemDialogProps> = ({
         const targetItem = existingItems[0];
         targetItemId = targetItem.id;
         
+        console.log(`Updating existing item in ${targetLocation}. Current quantity: ${targetItem.quantity}, Adding: ${moveQuantity}`);
+        
         const { error: updateError } = await supabase
           .from('inventory')
           .update({ 
@@ -114,9 +123,14 @@ const MoveItemDialog: React.FC<MoveItemDialogProps> = ({
           })
           .eq('id', targetItem.id);
           
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error("Error updating target location inventory:", updateError);
+          throw updateError;
+        }
       } else {
         // Create new item in target location
+        console.log(`Creating new inventory item in ${targetLocation} with quantity ${moveQuantity}`);
+        
         const { data: newItem, error: insertError } = await supabase
           .from('inventory')
           .insert([{
@@ -129,34 +143,52 @@ const MoveItemDialog: React.FC<MoveItemDialogProps> = ({
           }])
           .select();
           
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error("Error creating inventory in target location:", insertError);
+          throw insertError;
+        }
+        
         if (newItem && newItem.length > 0) {
           targetItemId = newItem[0].id;
+          console.log(`Created new inventory item with ID: ${targetItemId}`);
         }
       }
       
       // Update source item quantity
       const newSourceQuantity = item.quantity - moveQuantity;
+      console.log(`Updating source location. Current: ${item.quantity}, New: ${newSourceQuantity}`);
       
       if (newSourceQuantity === 0) {
         // Delete the item if quantity becomes zero
+        console.log(`Deleting source item (${item.id}) as quantity is now zero`);
+        
         const { error: deleteError } = await supabase
           .from('inventory')
           .delete()
           .eq('id', item.id);
           
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.error("Error deleting source inventory item:", deleteError);
+          throw deleteError;
+        }
       } else {
         // Update the item with reduced quantity
+        console.log(`Updating source item (${item.id}) quantity to ${newSourceQuantity}`);
+        
         const { error: updateError } = await supabase
           .from('inventory')
           .update({ quantity: newSourceQuantity })
           .eq('id', item.id);
           
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error("Error updating source inventory quantity:", updateError);
+          throw updateError;
+        }
       }
       
       // Create transaction record for the movement
+      console.log("Creating transaction record for the movement");
+      
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert([{
@@ -170,10 +202,15 @@ const MoveItemDialog: React.FC<MoveItemDialogProps> = ({
           notes: `Traslado de ${item.location} a ${targetLocation}`
         }]);
         
-      if (transactionError) throw transactionError;
+      if (transactionError) {
+        console.error("Error creating transaction record:", transactionError);
+        throw transactionError;
+      }
       
       // Check if the source item needs to trigger a low stock alert
       if (newSourceQuantity > 0 && item.min_stock && newSourceQuantity < item.min_stock) {
+        console.log("Checking for low stock alerts");
+        
         const updatedSourceItem = {
           ...item,
           quantity: newSourceQuantity
