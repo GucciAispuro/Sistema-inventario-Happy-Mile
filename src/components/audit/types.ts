@@ -19,6 +19,8 @@ export interface AuditHistory {
   items_count: number;
   discrepancies: number;
   created_at?: string;
+  items?: DatabaseAuditItem[]; // Add the items property as optional
+  total_value_discrepancy?: number; // Add total value discrepancy property
 }
 
 export interface DatabaseAuditItem {

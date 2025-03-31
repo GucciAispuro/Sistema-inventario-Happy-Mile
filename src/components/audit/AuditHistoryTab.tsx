@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
 import MotionContainer from '@/components/ui/MotionContainer';
@@ -92,7 +91,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       
       const auditWithItems = { 
         ...audit, 
-        items: enrichedItems,
+        items: enrichedItems as DatabaseAuditItem[],
         total_value_discrepancy: totalValueDiscrepancy
       };
       
@@ -129,7 +128,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
           throw error;
         }
         
-        auditItemsToRevert = data;
+        auditItemsToRevert = data as DatabaseAuditItem[];
       }
       
       if (auditItemsToRevert && auditItemsToRevert.length > 0) {

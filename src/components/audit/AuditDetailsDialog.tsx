@@ -23,7 +23,7 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
 }) => {
   // Calculate total value discrepancy
   const totalValueDiscrepancy = useMemo(() => {
-    if (!selectedAudit?.items?.length) return 0;
+    if (!selectedAudit?.items || selectedAudit.items.length === 0) return 0;
     
     return selectedAudit.items.reduce((total, item) => {
       if (item.difference && item.cost) {
@@ -108,7 +108,7 @@ const AuditDetailsDialog: React.FC<AuditDetailsDialogProps> = ({
                   </TableCell>
                 </TableRow>
               ))}
-              {!selectedAudit?.items?.length && (
+              {(!selectedAudit?.items || selectedAudit.items.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-4">
                     No hay detalles disponibles para esta auditoría
