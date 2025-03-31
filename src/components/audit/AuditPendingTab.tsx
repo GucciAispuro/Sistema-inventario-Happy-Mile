@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AuditItem } from './types';
 import { validateLocation } from '@/utils/inventory/validation';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface AuditPendingTabProps {
   inventoryItems: Array<AuditItem>;
@@ -41,9 +42,12 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
   const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [validatingLocation, setValidatingLocation] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     if (selectedLocation) {
+      setError(null); // Clear any previous errors when location changes
+      
       const locationItems = inventoryItems.filter(item => 
         item.location === selectedLocation
       );
@@ -82,28 +86,16 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
       return;
     }
     
+    console.log('Location selected:', location);
     setValidatingLocation(true);
+    setError(null);
+    
     try {
-      // Validate if location exists in the database
-      const validation = await validateLocation(location, supabase);
-      
-      if (!validation.isValid) {
-        toast({
-          title: "Ubicación no registrada",
-          description: validation.errors[0],
-          variant: "destructive"
-        });
-        setSelectedLocation('');
-      } else {
-        setSelectedLocation(location);
-      }
+      // Just set the location directly for now
+      setSelectedLocation(location);
     } catch (err) {
-      console.error('Error validating location:', err);
-      toast({
-        title: "Error",
-        description: "No se pudo validar la ubicación. Intente nuevamente.",
-        variant: "destructive"
-      });
+      console.error('Error selecting location:', err);
+      setError("Error al seleccionar la ubicación. Intente nuevamente.");
       setSelectedLocation('');
     } finally {
       setValidatingLocation(false);
@@ -131,12 +123,12 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
     }
 
     setLoading(true);
+    setError(null);
+    
     try {
-      // Validate location again before saving
-      const locationValidation = await validateLocation(selectedLocation, supabase);
-      if (!locationValidation.isValid) {
-        throw new Error(locationValidation.errors[0]);
-      }
+      console.log('Starting audit save process...');
+      console.log('Selected location:', selectedLocation);
+      console.log('Audit items:', auditItems);
 
       const userName = localStorage.getItem('userName') || 'Usuario';
       
@@ -162,84 +154,86 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
       
       if (error) {
         console.error('Error saving audit:', error);
-        throw error;
+        throw new Error(`No se pudo guardar la auditoría: ${error.message}`);
       }
       
-      if (data && data.length > 0) {
-        const auditId = data[0].id;
-        console.log('Audit saved with ID:', auditId);
-        
-        const auditItemsData = auditItems.map(item => ({
-          audit_id: auditId,
-          name: item.name,
-          category: item.category,
-          location: item.location,
-          system_quantity: item.system_quantity,
-          actual_quantity: item.actual_quantity || 0,
-          difference: item.difference || 0,
-          cost: item.cost || 0
-        }));
-        
-        console.log('Saving audit items:', auditItemsData);
-        
-        const { error: itemsError } = await supabase
-          .from('audit_items')
-          .insert(auditItemsData);
-        
-        if (itemsError) {
-          console.error('Error saving audit items:', itemsError);
-          throw itemsError;
-        }
-        
-        console.log('Audit items saved successfully');
-        
-        // Update inventory quantities based on audit results
-        for (const item of auditItems) {
-          if (item.actual_quantity !== null) {
-            try {
-              // Find inventory item in database
-              const { data: inventoryData, error: inventoryError } = await supabase
-                .from('inventory')
-                .select('*')
-                .eq('name', item.name)
-                .eq('location', item.location);
-                
-              if (inventoryError) {
-                console.error('Error finding inventory item:', inventoryError);
-                continue;
-              }
+      if (!data || data.length === 0) {
+        throw new Error('No se recibió confirmación del servidor al guardar la auditoría');
+      }
+      
+      const auditId = data[0].id;
+      console.log('Audit saved with ID:', auditId);
+      
+      const auditItemsData = auditItems.map(item => ({
+        audit_id: auditId,
+        name: item.name,
+        category: item.category,
+        location: item.location,
+        system_quantity: item.system_quantity,
+        actual_quantity: item.actual_quantity || 0,
+        difference: item.difference || 0,
+        cost: item.cost || 0
+      }));
+      
+      console.log('Saving audit items:', auditItemsData);
+      
+      const { error: itemsError } = await supabase
+        .from('audit_items')
+        .insert(auditItemsData);
+      
+      if (itemsError) {
+        console.error('Error saving audit items:', itemsError);
+        throw new Error(`No se pudieron guardar los elementos de la auditoría: ${itemsError.message}`);
+      }
+      
+      console.log('Audit items saved successfully');
+      
+      // Update inventory quantities based on audit results
+      for (const item of auditItems) {
+        if (item.actual_quantity !== null) {
+          try {
+            // Find inventory item in database
+            const { data: inventoryData, error: inventoryError } = await supabase
+              .from('inventory')
+              .select('*')
+              .eq('name', item.name)
+              .eq('location', item.location);
               
-              if (inventoryData && inventoryData.length > 0) {
-                const inventoryItem = inventoryData[0];
-                // Update inventory with the actual quantity from audit
-                const { error: updateError } = await supabase
-                  .from('inventory')
-                  .update({ quantity: item.actual_quantity })
-                  .eq('id', inventoryItem.id);
-                  
-                if (updateError) {
-                  console.error('Error updating inventory quantity:', updateError);
-                }
-              } else {
-                // If item doesn't exist in inventory, create it
-                const { error: insertError } = await supabase
-                  .from('inventory')
-                  .insert({
-                    name: item.name,
-                    category: item.category,
-                    location: item.location,
-                    quantity: item.actual_quantity,
-                    cost: item.cost || 0,
-                    min_stock: 5 // Default min stock
-                  });
-                  
-                if (insertError) {
-                  console.error('Error creating inventory item:', insertError);
-                }
-              }
-            } catch (err) {
-              console.error('Error processing inventory update for item:', item.name, err);
+            if (inventoryError) {
+              console.error('Error finding inventory item:', inventoryError);
+              continue;
             }
+            
+            if (inventoryData && inventoryData.length > 0) {
+              const inventoryItem = inventoryData[0];
+              // Update inventory with the actual quantity from audit
+              const { error: updateError } = await supabase
+                .from('inventory')
+                .update({ quantity: item.actual_quantity })
+                .eq('id', inventoryItem.id);
+                
+              if (updateError) {
+                console.error('Error updating inventory quantity:', updateError);
+              }
+            } else {
+              // If item doesn't exist in inventory, create it
+              const { error: insertError } = await supabase
+                .from('inventory')
+                .insert({
+                  name: item.name,
+                  category: item.category,
+                  location: item.location,
+                  quantity: item.actual_quantity,
+                  cost: item.cost || 0,
+                  min_stock: 5 // Default min stock
+                });
+                
+              if (insertError) {
+                console.error('Error creating inventory item:', insertError);
+              }
+            }
+          } catch (err) {
+            console.error('Error processing inventory update for item:', item.name, err);
           }
         }
       }
@@ -255,6 +249,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
       
     } catch (err) {
       console.error('Error in save audit:', err);
+      setError(err instanceof Error ? err.message : "No se pudo guardar la auditoría. Intente nuevamente.");
       toast({
         title: "Error al guardar",
         description: err instanceof Error ? err.message : "No se pudo guardar la auditoría. Intente nuevamente.",
@@ -269,6 +264,7 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
     setSelectedLocation('');
     setAuditItems([]);
     setSearchQuery('');
+    setError(null);
   };
 
   return (
@@ -305,6 +301,15 @@ const AuditPendingTab: React.FC<AuditPendingTabProps> = ({
           )}
         </div>
       </MotionContainer>
+      
+      {error && (
+        <MotionContainer delay={50}>
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </MotionContainer>
+      )}
       
       {selectedLocation && (
         <>

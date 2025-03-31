@@ -7,31 +7,29 @@ export interface AuditItem {
   system_quantity: number;
   actual_quantity: number | null;
   difference: number | null;
-  last_audit?: string;
-  cost?: number | null;
+  last_audit: string;
+  cost: number;
+}
+
+export interface AuditHistory {
+  id: string;
+  date: string;
+  location: string;
+  user_name: string;
+  items_count: number;
+  discrepancies: number;
+  created_at?: string;
 }
 
 export interface DatabaseAuditItem {
   id: string;
-  audit_id: string;
   name: string;
   category: string;
   location: string;
   system_quantity: number;
   actual_quantity: number;
   difference: number;
-  created_at: string | null;
-  cost?: number | null;
-}
-
-export interface AuditHistory {
-  id: string;
-  location: string;
-  date: string;
-  user_name: string;
-  items_count: number;
-  discrepancies: number;
-  items?: AuditItem[] | DatabaseAuditItem[];
+  audit_id: string;
   created_at?: string;
-  total_value_discrepancy?: number;
+  cost: number;
 }

@@ -83,14 +83,28 @@ export const validateLocation = async (location: string, supabaseClient: any): P
   }
   
   try {
+    console.log('Validating location:', location);
     // Check if location exists in database
     const { data, error } = await supabaseClient
       .from('locations')
       .select('name')
-      .eq('name', location);
+      .eq('name', location)
+      .single();
     
     if (error) {
-      console.error('Error al consultar ubicaciones:', error);
+      console.error('Error al validar ubicación:', error);
+      
+      // Check if the error is just that no rows were found
+      if (error.code === 'PGRST116') {
+        console.log('Location not found in database, but will continue with validation');
+        errors.push(`La ubicación "${location}" no está registrada en el sistema.`);
+        return {
+          isValid: false,
+          errors
+        };
+      }
+      
+      // For other errors
       errors.push('Error al validar la ubicación. Por favor intente nuevamente.');
       return {
         isValid: false,
@@ -98,20 +112,14 @@ export const validateLocation = async (location: string, supabaseClient: any): P
       };
     }
     
-    if (!data || data.length === 0) {
-      errors.push(`La ubicación "${location}" no está registrada en el sistema. Por favor, registre la ubicación antes de realizar la auditoría.`);
-      return {
-        isValid: false,
-        errors
-      };
-    }
-    
+    // If we got here, the location was found
+    console.log('Location validated successfully:', data);
     return {
       isValid: true,
       errors: []
     };
   } catch (err) {
-    console.error('Error en validateLocation:', err);
+    console.error('Exception in validateLocation:', err);
     errors.push('Error al validar la ubicación. Por favor intente nuevamente.');
     return {
       isValid: false,
