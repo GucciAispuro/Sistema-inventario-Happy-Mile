@@ -295,6 +295,11 @@ const Inventory = () => {
       }
       
       await fetchInventoryData();
+      
+      toast({
+        title: "Artículo eliminado",
+        description: "El artículo ha sido eliminado correctamente del inventario.",
+      });
     } catch (error) {
       console.error('Error deleting item:', error);
       throw error;

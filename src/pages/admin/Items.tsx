@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import DeleteItemDialog from '@/components/inventory/DeleteItemDialog';
 import { 
   Search,
   Filter,
@@ -26,6 +27,8 @@ const AdminItems = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<{ id: string; name: string } | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   useEffect(() => {
     // Check authentication
@@ -111,11 +114,60 @@ const AdminItems = () => {
     });
   };
 
-  const handleDelete = (item) => {
-    toast({
-      title: "Eliminar Artículo",
-      description: `¿Está seguro que desea eliminar ${item.name}?`,
-    });
+  const handleDeleteClick = (item) => {
+    setSelectedItem(item);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    try {
+      // Check if there are associated transactions
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('item', selectedItem?.name || '')
+        .eq('location', selectedItem?.location || '')
+        .limit(1);
+      
+      if (transactionsError) {
+        throw transactionsError;
+      }
+      
+      if (transactionsData && transactionsData.length > 0) {
+        toast({
+          title: "No se puede eliminar",
+          description: "Este artículo tiene transacciones asociadas y no puede ser eliminado. Considere reducir su cantidad a cero en su lugar.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Delete the item
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update the UI
+      await fetchItems();
+      
+      toast({
+        title: "Artículo eliminado",
+        description: "El artículo ha sido eliminado correctamente del inventario.",
+      });
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: "Error al eliminar artículo",
+        description: "No se pudo eliminar el artículo del inventario",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
   const toggleFilters = () => {
@@ -222,7 +274,7 @@ const AdminItems = () => {
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(item)}>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteClick(item)}>
                       <Trash2 className="h-4 w-4 mr-1" />
                       Eliminar
                     </Button>
@@ -235,6 +287,13 @@ const AdminItems = () => {
           />
         </MotionContainer>
       </div>
+
+      <DeleteItemDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        item={selectedItem}
+        onDeleteItem={handleDeleteItem}
+      />
     </Layout>
   );
 };
