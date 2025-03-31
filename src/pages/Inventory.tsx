@@ -144,8 +144,11 @@ const Inventory = () => {
           cost: item.cost || 0,
           status: 
             item.quantity === 0 ? 'Agotado' :
-            item.min_stock ? (item.quantity < item.min_stock / 2 ? 'Crítico' :
-            item.quantity < item.min_stock ? 'Bajo' : 'Normal') : 'Normal',
+            item.min_stock ? (
+              item.quantity < item.min_stock / 2 ? 'Crítico' :
+              item.quantity < item.min_stock ? 'Bajo' : 
+              item.quantity >= item.min_stock * 3 ? 'Exceso' : 'Normal'
+            ) : 'Normal',
           total_value: (item.cost || 0) * item.quantity
         }));
         
@@ -353,6 +356,7 @@ const Inventory = () => {
       case 'Bajo': return 'destructive';
       case 'Crítico': return 'destructive';
       case 'Agotado': return 'destructive';
+      case 'Exceso': return 'warning';
       default: return 'secondary';
     }
   };

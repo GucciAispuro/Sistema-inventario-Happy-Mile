@@ -39,9 +39,10 @@ export const validateItemForm = (item: ItemFormData): ValidationResult => {
   };
 };
 
-export const calculateItemStatus = (quantity: number, min_stock: number): 'Normal' | 'Bajo' | 'Crítico' => {
+export const calculateItemStatus = (quantity: number, min_stock: number): 'Normal' | 'Bajo' | 'Crítico' | 'Exceso' => {
   if (quantity === 0) return 'Crítico';
   if (quantity < min_stock) return 'Bajo';
+  if (quantity >= min_stock * 3) return 'Exceso';
   return 'Normal';
 };
 
