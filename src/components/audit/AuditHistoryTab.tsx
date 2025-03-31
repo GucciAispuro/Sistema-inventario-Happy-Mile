@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import AuditDetailsDialog from './AuditDetailsDialog';
-import { AuditHistory } from './types';
+import { AuditHistory, DatabaseAuditItem } from './types';
 
 interface AuditHistoryTabProps {
   auditHistory: AuditHistory[];
@@ -81,7 +81,7 @@ const AuditHistoryTab: React.FC<AuditHistoryTabProps> = ({
       // Add cost information to audit items
       const enrichedItems = auditItems.map(item => ({
         ...item,
-        cost: costMap.get(item.name) || item.cost || 0
+        cost: costMap.get(item.name) || 0
       }));
       
       // Calculate total value discrepancy
