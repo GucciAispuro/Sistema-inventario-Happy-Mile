@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -17,28 +16,37 @@ import {
   Plus
 } from 'lucide-react';
 
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  min_stock: number;
+  lead_time: number;
+  unit: string;
+  location: string;
+}
+
 const AdminItems = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [items, setItems] = useState([]);
+  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<{ id: string; name: string } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   useEffect(() => {
-    // Check authentication
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuthenticated) {
       navigate('/');
       return;
     }
     
-    // Check admin role
     const role = localStorage.getItem('userRole');
     if (role !== 'admin') {
       navigate('/dashboard');
@@ -61,7 +69,6 @@ const AdminItems = () => {
         throw error;
       }
       
-      // Format the data to match our expected structure
       const formattedItems = data ? data.map(item => ({
         id: item.id,
         name: item.name,
@@ -107,21 +114,20 @@ const AdminItems = () => {
     }
   }, [searchQuery, categoryFilter, items]);
 
-  const handleEdit = (item) => {
+  const handleEdit = (item: InventoryItem) => {
     toast({
       title: "Editar Artículo",
       description: `Editando: ${item.name}`,
     });
   };
 
-  const handleDeleteClick = (item) => {
+  const handleDeleteClick = (item: InventoryItem) => {
     setSelectedItem(item);
     setShowDeleteDialog(true);
   };
 
   const handleDeleteItem = async (id: string) => {
     try {
-      // Check if there are associated transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('id')
@@ -142,7 +148,6 @@ const AdminItems = () => {
         return;
       }
       
-      // Delete the item
       const { error } = await supabase
         .from('inventory')
         .delete()
@@ -152,7 +157,6 @@ const AdminItems = () => {
         throw error;
       }
       
-      // Update the UI
       await fetchItems();
       
       toast({
@@ -182,7 +186,6 @@ const AdminItems = () => {
     navigate('/inventory');
   };
 
-  // Get unique categories for filter
   const categories = Array.from(new Set(items.map(item => item.category)));
 
   return (

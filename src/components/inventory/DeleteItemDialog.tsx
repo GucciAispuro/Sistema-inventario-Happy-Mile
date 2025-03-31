@@ -12,10 +12,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Update the interface to allow for a more complete item object
 interface DeleteItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  item: { id: string; name: string } | null;
+  item: { id: string; name: string; [key: string]: any } | null;
   onDeleteItem: (id: string) => Promise<void>;
 }
 
