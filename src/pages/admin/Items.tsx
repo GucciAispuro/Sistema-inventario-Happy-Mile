@@ -22,9 +22,9 @@ interface InventoryItem {
   id: string;
   name: string;
   category: string;
-  description: string;
+  description?: string; // Adding description field
   min_stock: number;
-  lead_time: number;
+  lead_time?: number; // Make lead_time optional as it might not exist in all records
   unit: string;
   location: string;
   cost?: number;
@@ -105,7 +105,7 @@ const AdminItems = () => {
         id: item.id,
         name: item.name,
         category: item.category,
-        description: '', // Currently not in the database
+        description: item.description || '', // Get description from database or empty string
         min_stock: item.min_stock || 5,
         lead_time: item.lead_time || 7, // Getting the lead_time from database
         unit: 'piezas', // Default value as it's not in the database
@@ -170,7 +170,8 @@ const AdminItems = () => {
           quantity: updatedItem.quantity,
           min_stock: updatedItem.min_stock,
           cost: updatedItem.cost,
-          lead_time: updatedItem.lead_time
+          lead_time: updatedItem.lead_time,
+          description: updatedItem.description // Add description field to update
         })
         .eq('id', id);
       

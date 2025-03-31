@@ -21,6 +21,7 @@ interface EditItemDialogProps {
     name: string;
     category: string;
     location: string;
+    description?: string;
     quantity?: number;
     min_stock?: number;
     lead_time?: number;
@@ -44,7 +45,8 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
     quantity: 0,
     min_stock: 0,
     lead_time: 7,
-    cost: 0
+    cost: 0,
+    description: ''
   });
   
   // Lista predefinida de categorías
@@ -69,7 +71,8 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
         quantity: item.quantity || 0,
         min_stock: item.min_stock || 0,
         lead_time: item.lead_time || 7,
-        cost: item.cost || 0
+        cost: item.cost || 0,
+        description: item.description || ''
       });
     }
   }, [item]);

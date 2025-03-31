@@ -34,7 +34,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     quantity: 0,
     min_stock: 0,
     lead_time: 7,
-    cost: 0
+    cost: 0,
+    description: ''
   });
   
   // Lista predefinida de categorías
@@ -95,7 +96,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
         quantity: newItem.quantity,
         min_stock: newItem.min_stock,
         lead_time: newItem.lead_time,
-        cost: newItem.cost
+        cost: newItem.cost,
+        description: newItem.description
       };
       
       // Insert the item into the database
@@ -127,7 +129,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
           quantity: 0,
           min_stock: 0,
           lead_time: 7,
-          cost: 0
+          cost: 0,
+          description: ''
         });
         
         // Close the dialog

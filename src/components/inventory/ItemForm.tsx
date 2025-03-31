@@ -2,6 +2,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CategoryManagement from './CategoryManagement';
 
@@ -13,6 +14,7 @@ export interface ItemFormData {
   min_stock: number;
   lead_time: number;
   cost: number;
+  description?: string; // Add description field
 }
 
 interface ItemFormProps {
@@ -30,7 +32,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   categories,
   onAddCategory
 }) => {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     onChange(
       name,
@@ -77,6 +79,18 @@ const ItemForm: React.FC<ItemFormProps> = ({
             ))}
           </SelectContent>
         </Select>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="description">Descripción</Label>
+        <Textarea
+          id="description"
+          name="description"
+          value={item.description || ''}
+          onChange={handleInputChange}
+          placeholder="Descripción detallada del artículo"
+          rows={3}
+        />
       </div>
       
       <div className="grid grid-cols-2 gap-4">
