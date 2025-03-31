@@ -67,18 +67,18 @@ const AdminLocations = () => {
     }
     
     setUserRole(role);
-    fetchLocations();
+    fetchLocationsAndInventory();
     fetchUsers();
   }, [navigate]);
   
-  const fetchLocations = async () => {
+  const fetchLocationsAndInventory = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: locationsData, error: locationsError } = await supabase
         .from('locations')
         .select('*');
       
-      if (error) {
-        console.error("Error fetching locations:", error);
+      if (locationsError) {
+        console.error("Error fetching locations:", locationsError);
         toast({
           title: "Error al cargar ubicaciones",
           description: "No se pudieron cargar las ubicaciones",
@@ -87,19 +87,47 @@ const AdminLocations = () => {
         return;
       }
       
-      const formattedLocations = data.map(location => ({
-        id: location.id,
-        name: location.name, 
-        address: location.address || 'Sin dirección',
-        items_count: 0,
-        total_value: 0,
-        manager: location.manager || 'No asignado'
-      }));
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*');
       
-      setAllLocations(formattedLocations);
-      setFilteredLocations(formattedLocations);
+      if (inventoryError) {
+        console.error("Error fetching inventory:", inventoryError);
+        throw inventoryError;
+      }
+      
+      const locationsWithInventory = locationsData.map(location => {
+        const locationItems = inventoryData.filter(item => 
+          item.location === location.name
+        );
+        
+        const items_count = locationItems.length;
+        const total_value = locationItems.reduce((sum, item) => {
+          const itemValue = (item.cost || 0) * (item.quantity || 0);
+          return sum + itemValue;
+        }, 0);
+        
+        return {
+          id: location.id,
+          name: location.name, 
+          address: location.address || 'Sin dirección',
+          items_count,
+          total_value,
+          manager: location.manager || 'No asignado'
+        };
+      });
+      
+      setAllLocations(locationsWithInventory);
+      setFilteredLocations(locationsWithInventory);
+      
+      const overallTotal = locationsWithInventory.reduce(
+        (sum, location) => sum + location.total_value, 
+        0
+      );
+      setTotalOverallValue(overallTotal);
+      
     } catch (error) {
-      console.error("Error in fetchLocations:", error);
+      console.error("Error in fetchLocationsAndInventory:", error);
       toast({
         title: "Error",
         description: "No se pudieron cargar las ubicaciones",
@@ -134,8 +162,8 @@ const AdminLocations = () => {
       const query = searchQuery.toLowerCase();
       const filtered = allLocations.filter(location => 
         location.name.toLowerCase().includes(query) ||
-        location.address.toLowerCase().includes(query) ||
-        location.manager.toLowerCase().includes(query)
+        (location.address && location.address.toLowerCase().includes(query)) ||
+        (location.manager && location.manager.toLowerCase().includes(query))
       );
       setFilteredLocations(filtered);
     }
@@ -200,6 +228,8 @@ const AdminLocations = () => {
         address: '',
         manager: ''
       });
+      
+      fetchLocationsAndInventory();
     } catch (error) {
       console.error("Error saving location:", error);
       toast({
@@ -249,6 +279,8 @@ const AdminLocations = () => {
       });
 
       setShowEditLocationDialog(false);
+      
+      fetchLocationsAndInventory();
     } catch (error) {
       console.error("Error updating location:", error);
       toast({
@@ -301,6 +333,8 @@ const AdminLocations = () => {
           title: "Ubicación eliminada",
           description: `Se ha eliminado la ubicación correctamente`,
         });
+        
+        fetchLocationsAndInventory();
       }
     } catch (error) {
       console.error("Error al verificar los artículos:", error);

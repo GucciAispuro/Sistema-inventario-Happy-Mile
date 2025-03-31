@@ -356,7 +356,7 @@ const Inventory = () => {
       case 'Bajo': return 'destructive';
       case 'Crítico': return 'destructive';
       case 'Agotado': return 'destructive';
-      case 'Exceso': return 'warning';
+      case 'Exceso': return 'secondary';
       default: return 'secondary';
     }
   };
