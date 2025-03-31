@@ -33,6 +33,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     location: '',
     quantity: 0,
     min_stock: 0,
+    lead_time: 7,
     cost: 0
   });
   
@@ -93,6 +94,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
         location: newItem.location,
         quantity: newItem.quantity,
         min_stock: newItem.min_stock,
+        lead_time: newItem.lead_time,
         cost: newItem.cost
       };
       
@@ -124,6 +126,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
           location: '',
           quantity: 0,
           min_stock: 0,
+          lead_time: 7,
           cost: 0
         });
         

@@ -21,8 +21,9 @@ interface EditItemDialogProps {
     name: string;
     category: string;
     location: string;
-    quantity: number;
+    quantity?: number;
     min_stock?: number;
+    lead_time?: number;
     cost?: number;
   } | null;
   onUpdateItem: (id: string, item: any) => void;
@@ -42,6 +43,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
     location: '',
     quantity: 0,
     min_stock: 0,
+    lead_time: 7,
     cost: 0
   });
   
@@ -64,8 +66,9 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
         name: item.name,
         category: item.category,
         location: item.location,
-        quantity: item.quantity,
+        quantity: item.quantity || 0,
         min_stock: item.min_stock || 0,
+        lead_time: item.lead_time || 7,
         cost: item.cost || 0
       });
     }

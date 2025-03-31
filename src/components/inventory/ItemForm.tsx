@@ -11,6 +11,7 @@ export interface ItemFormData {
   location: string;
   quantity: number;
   min_stock: number;
+  lead_time: number;
   cost: number;
 }
 
@@ -33,7 +34,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
     const { name, value } = e.target;
     onChange(
       name,
-      name === 'quantity' || name === 'min_stock' || name === 'cost'
+      name === 'quantity' || name === 'min_stock' || name === 'cost' || name === 'lead_time'
         ? parseFloat(value) || 0 
         : value
     );
@@ -115,6 +116,18 @@ const ItemForm: React.FC<ItemFormProps> = ({
             onChange={handleInputChange}
             min="0"
             step="0.01"
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="lead_time">Tiempo de Reabastecimiento (días) *</Label>
+          <Input
+            id="lead_time"
+            name="lead_time"
+            type="number"
+            value={item.lead_time}
+            onChange={handleInputChange}
+            min="1"
           />
         </div>
       </div>

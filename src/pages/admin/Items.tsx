@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import DeleteItemDialog from '@/components/inventory/DeleteItemDialog';
+import EditItemDialog from '@/components/inventory/EditItemDialog';
 import { 
   Search,
   Filter,
@@ -25,6 +27,8 @@ interface InventoryItem {
   lead_time: number;
   unit: string;
   location: string;
+  cost?: number;
+  quantity?: number;
 }
 
 const AdminItems = () => {
@@ -39,6 +43,8 @@ const AdminItems = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [registeredLocations, setRegisteredLocations] = useState<string[]>([]);
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -55,7 +61,33 @@ const AdminItems = () => {
     
     setUserRole(role);
     fetchItems();
+    fetchLocations();
   }, [navigate]);
+
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('name')
+        .order('name');
+      
+      if (error) {
+        console.error("Error fetching locations:", error);
+        throw error;
+      }
+      
+      if (data) {
+        setRegisteredLocations(data.map(loc => loc.name));
+      }
+    } catch (error) {
+      console.error("Error in fetchLocations:", error);
+      toast({
+        title: "Error al cargar ubicaciones",
+        description: "No se pudieron cargar las ubicaciones",
+        variant: "destructive"
+      });
+    }
+  };
 
   const fetchItems = async () => {
     setIsLoading(true);
@@ -75,9 +107,11 @@ const AdminItems = () => {
         category: item.category,
         description: '', // Currently not in the database
         min_stock: item.min_stock || 5,
-        lead_time: 7, // Default value as it's not in the database
+        lead_time: item.lead_time || 7, // Getting the lead_time from database
         unit: 'piezas', // Default value as it's not in the database
-        location: item.location
+        location: item.location,
+        cost: item.cost,
+        quantity: item.quantity
       })) : [];
       
       setItems(formattedItems);
@@ -103,7 +137,8 @@ const AdminItems = () => {
         const matchesSearch = query === '' ? true : 
           item.name.toLowerCase().includes(query) ||
           item.category.toLowerCase().includes(query) ||
-          (item.description && item.description.toLowerCase().includes(query));
+          (item.description && item.description.toLowerCase().includes(query)) ||
+          item.location.toLowerCase().includes(query);  // Added location to search
         
         const matchesCategory = categoryFilter === '' ? true : 
           item.category === categoryFilter;
@@ -115,15 +150,64 @@ const AdminItems = () => {
   }, [searchQuery, categoryFilter, items]);
 
   const handleEdit = (item: InventoryItem) => {
-    toast({
-      title: "Editar Artículo",
-      description: `Editando: ${item.name}`,
-    });
+    setSelectedItem(item);
+    setShowEditDialog(true);
   };
 
   const handleDeleteClick = (item: InventoryItem) => {
     setSelectedItem(item);
     setShowDeleteDialog(true);
+  };
+
+  const handleUpdateItem = async (id: string, updatedItem: any) => {
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({
+          name: updatedItem.name,
+          category: updatedItem.category,
+          location: updatedItem.location,
+          quantity: updatedItem.quantity,
+          min_stock: updatedItem.min_stock,
+          cost: updatedItem.cost,
+          lead_time: updatedItem.lead_time
+        })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error updating item:', error);
+        throw error;
+      }
+      
+      // Update local state
+      const updatedItems = items.map(item => 
+        item.id === id ? { ...item, ...updatedItem } : item
+      );
+      
+      setItems(updatedItems);
+      setFilteredItems(updatedItems.filter(item => {
+        const matchesSearch = searchQuery === '' ? true : 
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.category.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesCategory = categoryFilter === '' ? true : 
+          item.category === categoryFilter;
+        
+        return matchesSearch && matchesCategory;
+      }));
+      
+      toast({
+        title: "Artículo actualizado",
+        description: `${updatedItem.name} ha sido actualizado correctamente`,
+      });
+    } catch (error) {
+      console.error('Error updating item:', error);
+      toast({
+        title: "Error al actualizar artículo",
+        description: "No se pudo actualizar el artículo en el inventario",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDeleteItem = async (id: string) => {
@@ -261,6 +345,7 @@ const AdminItems = () => {
             columns={[
               { key: 'name', header: 'Nombre del Artículo' },
               { key: 'category', header: 'Categoría' },
+              { key: 'location', header: 'Ubicación' }, // Added location column
               { 
                 key: 'description', 
                 header: 'Descripción',
@@ -279,7 +364,7 @@ const AdminItems = () => {
               },
               { 
                 key: 'lead_time', 
-                header: 'Tiempo de Entrega',
+                header: 'Tiempo de Reabastecimiento',
                 cell: (item) => (
                   <div>{item.lead_time || '---'} días</div>
                 )
@@ -314,6 +399,16 @@ const AdminItems = () => {
         item={selectedItem}
         onDeleteItem={handleDeleteItem}
       />
+
+      {selectedItem && (
+        <EditItemDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          locations={registeredLocations}
+          item={selectedItem}
+          onUpdateItem={handleUpdateItem}
+        />
+      )}
     </Layout>
   );
 };
