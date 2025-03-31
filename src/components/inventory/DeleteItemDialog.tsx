@@ -35,11 +35,7 @@ const DeleteItemDialog: React.FC<DeleteItemDialogProps> = ({
     setIsDeleting(true);
     try {
       await onDeleteItem(item.id);
-      toast({
-        title: "Artículo eliminado",
-        description: `${item.name} ha sido eliminado del inventario`,
-      });
-      onOpenChange(false);
+      onOpenChange(false); // Close dialog after successful deletion
     } catch (error) {
       console.error('Error deleting item:', error);
       toast({

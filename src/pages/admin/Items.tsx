@@ -128,14 +128,19 @@ const AdminItems = () => {
 
   const handleDeleteItem = async (id: string) => {
     try {
+      if (!selectedItem) {
+        throw new Error('No item selected for deletion');
+      }
+      
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('id')
-        .eq('item', selectedItem?.name || '')
-        .eq('location', selectedItem?.location || '')
+        .eq('item', selectedItem.name)
+        .eq('location', selectedItem.location)
         .limit(1);
       
       if (transactionsError) {
+        console.error('Error checking transactions:', transactionsError);
         throw transactionsError;
       }
       
@@ -154,14 +159,26 @@ const AdminItems = () => {
         .eq('id', id);
       
       if (error) {
+        console.error('Error deleting from database:', error);
         throw error;
       }
       
-      await fetchItems();
+      const updatedItems = items.filter(item => item.id !== id);
+      setItems(updatedItems);
+      setFilteredItems(updatedItems.filter(item => {
+        const matchesSearch = searchQuery === '' ? true : 
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.category.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesCategory = categoryFilter === '' ? true : 
+          item.category === categoryFilter;
+        
+        return matchesSearch && matchesCategory;
+      }));
       
       toast({
         title: "Artículo eliminado",
-        description: "El artículo ha sido eliminado correctamente del inventario.",
+        description: `${selectedItem.name} ha sido eliminado del inventario`,
       });
     } catch (error) {
       console.error('Error deleting item:', error);
