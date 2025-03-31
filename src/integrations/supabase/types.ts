@@ -14,6 +14,7 @@ export type Database = {
           actual_quantity: number
           audit_id: string
           category: string
+          cost: number | null
           created_at: string | null
           difference: number
           id: string
@@ -25,6 +26,7 @@ export type Database = {
           actual_quantity: number
           audit_id: string
           category: string
+          cost?: number | null
           created_at?: string | null
           difference: number
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           actual_quantity?: number
           audit_id?: string
           category?: string
+          cost?: number | null
           created_at?: string | null
           difference?: number
           id?: string
