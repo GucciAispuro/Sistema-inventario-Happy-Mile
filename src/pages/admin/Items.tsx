@@ -105,9 +105,9 @@ const AdminItems = () => {
         id: item.id,
         name: item.name,
         category: item.category,
-        description: item.description || '', // Get description from database or empty string
+        description: item.description || '', // Use optional chaining since the field might not exist
         min_stock: item.min_stock || 5,
-        lead_time: item.lead_time || 7, // Getting the lead_time from database
+        lead_time: item.lead_time || 7, // Use optional chaining for lead_time
         unit: 'piezas', // Default value as it's not in the database
         location: item.location,
         cost: item.cost,
@@ -171,7 +171,7 @@ const AdminItems = () => {
           min_stock: updatedItem.min_stock,
           cost: updatedItem.cost,
           lead_time: updatedItem.lead_time,
-          description: updatedItem.description // Add description field to update
+          description: updatedItem.description // Add description field
         })
         .eq('id', id);
       
