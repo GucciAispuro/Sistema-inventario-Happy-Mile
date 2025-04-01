@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -21,9 +22,9 @@ interface InventoryItem {
   id: string;
   name: string;
   category: string;
-  description: string; 
+  description?: string; 
   min_stock: number;
-  lead_time: number;
+  lead_time?: number;
   unit: string;
   location: string;
   cost?: number;
