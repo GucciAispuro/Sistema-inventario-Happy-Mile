@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -22,9 +21,9 @@ interface InventoryItem {
   id: string;
   name: string;
   category: string;
-  description?: string; // Adding description field
+  description: string; 
   min_stock: number;
-  lead_time?: number; // Make lead_time optional as it might not exist in all records
+  lead_time: number;
   unit: string;
   location: string;
   cost?: number;
@@ -105,10 +104,10 @@ const AdminItems = () => {
         id: item.id,
         name: item.name,
         category: item.category,
-        description: item.description || '', // Use optional chaining since the field might not exist
+        description: item.description || '', 
         min_stock: item.min_stock || 5,
-        lead_time: item.lead_time || 7, // Use optional chaining for lead_time
-        unit: 'piezas', // Default value as it's not in the database
+        lead_time: item.lead_time || 7,
+        unit: 'piezas',
         location: item.location,
         cost: item.cost,
         quantity: item.quantity
@@ -138,7 +137,7 @@ const AdminItems = () => {
           item.name.toLowerCase().includes(query) ||
           item.category.toLowerCase().includes(query) ||
           (item.description && item.description.toLowerCase().includes(query)) ||
-          item.location.toLowerCase().includes(query);  // Added location to search
+          item.location.toLowerCase().includes(query);
         
         const matchesCategory = categoryFilter === '' ? true : 
           item.category === categoryFilter;
@@ -171,7 +170,7 @@ const AdminItems = () => {
           min_stock: updatedItem.min_stock,
           cost: updatedItem.cost,
           lead_time: updatedItem.lead_time,
-          description: updatedItem.description // Add description field
+          description: updatedItem.description
         })
         .eq('id', id);
       
@@ -180,7 +179,6 @@ const AdminItems = () => {
         throw error;
       }
       
-      // Update local state
       const updatedItems = items.map(item => 
         item.id === id ? { ...item, ...updatedItem } : item
       );
@@ -346,7 +344,7 @@ const AdminItems = () => {
             columns={[
               { key: 'name', header: 'Nombre del Artículo' },
               { key: 'category', header: 'Categoría' },
-              { key: 'location', header: 'Ubicación' }, // Added location column
+              { key: 'location', header: 'Ubicación' },
               { 
                 key: 'description', 
                 header: 'Descripción',

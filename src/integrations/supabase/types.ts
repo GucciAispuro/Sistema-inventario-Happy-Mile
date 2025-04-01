@@ -91,7 +91,9 @@ export type Database = {
           category: string
           cost: number | null
           created_at: string | null
+          description: string | null
           id: string
+          lead_time: number | null
           location: string
           min_stock: number | null
           name: string
@@ -101,7 +103,9 @@ export type Database = {
           category: string
           cost?: number | null
           created_at?: string | null
+          description?: string | null
           id?: string
+          lead_time?: number | null
           location: string
           min_stock?: number | null
           name: string
@@ -111,7 +115,9 @@ export type Database = {
           category?: string
           cost?: number | null
           created_at?: string | null
+          description?: string | null
           id?: string
+          lead_time?: number | null
           location?: string
           min_stock?: number | null
           name?: string
