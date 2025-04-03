@@ -97,6 +97,7 @@ export type Database = {
           location: string
           min_stock: number | null
           name: string
+          part_type_id: string | null
           quantity: number
         }
         Insert: {
@@ -109,6 +110,7 @@ export type Database = {
           location: string
           min_stock?: number | null
           name: string
+          part_type_id?: string | null
           quantity?: number
         }
         Update: {
@@ -121,9 +123,18 @@ export type Database = {
           location?: string
           min_stock?: number | null
           name?: string
+          part_type_id?: string | null
           quantity?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_part_type_id_fkey"
+            columns: ["part_type_id"]
+            isOneToOne: false
+            referencedRelation: "part_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       locations: {
         Row: {
@@ -149,6 +160,111 @@ export type Database = {
         }
         Relationships: []
       }
+      part_receipts: {
+        Row: {
+          cost: number | null
+          created_at: string | null
+          id: string
+          invoice_number: string
+          item_id: string
+          notes: string | null
+          quantity: number
+          receipt_date: string
+          supplier_id: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string | null
+          id?: string
+          invoice_number: string
+          item_id: string
+          notes?: string | null
+          quantity: number
+          receipt_date?: string
+          supplier_id: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string | null
+          id?: string
+          invoice_number?: string
+          item_id?: string
+          notes?: string | null
+          quantity?: number
+          receipt_date?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_receipts_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      part_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_name: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           category: string
@@ -164,6 +280,7 @@ export type Database = {
           type: string
           user_id: string
           user_name: string
+          voucher_number: string | null
         }
         Insert: {
           category: string
@@ -179,6 +296,7 @@ export type Database = {
           type: string
           user_id: string
           user_name: string
+          voucher_number?: string | null
         }
         Update: {
           category?: string
@@ -194,6 +312,7 @@ export type Database = {
           type?: string
           user_id?: string
           user_name?: string
+          voucher_number?: string | null
         }
         Relationships: []
       }

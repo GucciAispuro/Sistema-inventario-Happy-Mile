@@ -18,6 +18,8 @@ import Audit from "./pages/Audit";
 import AdminItems from "./pages/admin/Items";
 import AdminLocations from "./pages/admin/Locations";
 import AdminUsers from "./pages/admin/Users";
+import Suppliers from "./pages/Suppliers";
+import PartReceipts from "./pages/PartReceipts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -68,6 +70,16 @@ const App = () => {
             <Route path="/audit" element={
               <AuthGuard>
                 <Audit />
+              </AuthGuard>
+            } />
+            <Route path="/suppliers" element={
+              <AuthGuard>
+                <Suppliers />
+              </AuthGuard>
+            } />
+            <Route path="/part-receipts" element={
+              <AuthGuard>
+                <PartReceipts />
               </AuthGuard>
             } />
             

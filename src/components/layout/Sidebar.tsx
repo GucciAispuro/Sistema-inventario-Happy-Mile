@@ -10,6 +10,8 @@ import {
   LogOut,
   ClipboardCheck,
   FileCheck2,
+  Contact2,
+  Truck,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -44,6 +46,8 @@ export function AppSidebar() {
     { icon: ArrowLeftRight, label: 'Transacciones', path: '/transactions' },
     { icon: ClipboardCheck, label: 'Entrada y Salida', path: '/colaborador' },
     { icon: FileCheck2, label: 'Auditar', path: '/audit' },
+    { icon: Truck, label: 'Control de Refacciones', path: '/part-receipts' },
+    { icon: Contact2, label: 'Proveedores', path: '/suppliers' },
   ];
 
   const handleLogout = async () => {
