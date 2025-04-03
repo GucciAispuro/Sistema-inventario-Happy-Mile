@@ -214,10 +214,9 @@ const TransaccionesColaborador = () => {
           return;
         }
         
-        proofUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${data.Key}`;
+        proofUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${data?.path}`;
       }
       
-      // Prepare transaction object
       const transactionData = {
         item: formData.item,
         category: selectedItem.category,
@@ -233,7 +232,6 @@ const TransaccionesColaborador = () => {
         voucher_number: formData.voucher_number || null,
       };
       
-      // Insert transaction
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert([transactionData]);
@@ -248,7 +246,6 @@ const TransaccionesColaborador = () => {
         return;
       }
       
-      // Update inventory
       const newQuantity = transactionType === 'IN'
         ? selectedItem.quantity + quantityValue
         : selectedItem.quantity - quantityValue;
@@ -273,7 +270,6 @@ const TransaccionesColaborador = () => {
         description: "La transacción ha sido registrada correctamente.",
       });
       
-      // Reset form
       setFormData({
         item: '',
         quantity: '',
