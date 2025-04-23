@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,6 +7,22 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ensureTables } from "@/utils/database/ensureTables";
 import AuthGuard from "@/components/auth/AuthGuard";
+
+// Import missing page components
+import Index from "@/pages/Index";
+import Dashboard from "@/pages/Dashboard";
+import Inventory from "@/pages/Inventory";
+import Transactions from "@/pages/Transactions";
+import TransaccionesColaborador from "@/pages/TransaccionesColaborador";
+import Audit from "@/pages/Audit";
+import Suppliers from "@/pages/Suppliers";
+import PartReceipts from "@/pages/PartReceipts";
+import NotFound from "@/pages/NotFound";
+
+// Import admin pages
+import AdminItems from "@/pages/admin/Items";
+import AdminLocations from "@/pages/admin/Locations";
+import AdminUsers from "@/pages/admin/Users";
 import AssignedAssets from '@/pages/admin/AssignedAssets';
 
 const queryClient = new QueryClient({

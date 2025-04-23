@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Dashboard, 
+  LayoutDashboard, 
   ShoppingBag, 
   Package, 
   Users, 
@@ -13,8 +14,9 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
 import { supabase } from '@/integrations/supabase/client';
 
 const Sidebar = () => {
@@ -49,7 +51,7 @@ const Sidebar = () => {
 
   const commonMenuItems = [
     {
-      icon: <Dashboard className="h-4 w-4" />,
+      icon: <LayoutDashboard className="h-4 w-4" />,
       label: 'Dashboard',
       path: '/dashboard'
     },
