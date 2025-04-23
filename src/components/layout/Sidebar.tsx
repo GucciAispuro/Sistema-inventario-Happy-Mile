@@ -1,4 +1,3 @@
-
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -12,6 +11,7 @@ import {
   FileCheck2,
   Contact2,
   Truck,
+  List,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -48,6 +48,7 @@ export function AppSidebar() {
     { icon: FileCheck2, label: 'Auditar', path: '/audit' },
     { icon: Truck, label: 'Control de Refacciones', path: '/part-receipts' },
     { icon: Contact2, label: 'Proveedores', path: '/suppliers' },
+    { icon: List, label: 'Activos Asignados', path: '/asset-assignments' },
   ];
 
   const handleLogout = async () => {

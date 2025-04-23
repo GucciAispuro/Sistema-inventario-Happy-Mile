@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,18 +8,19 @@ import { ensureTables } from "@/utils/database/ensureTables";
 import AuthGuard from "@/components/auth/AuthGuard";
 
 // Pages
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import Inventory from "./pages/Inventory";
-import Transactions from "./pages/Transactions";
-import TransaccionesColaborador from "./pages/TransaccionesColaborador";
-import Audit from "./pages/Audit";
-import AdminItems from "./pages/admin/Items";
-import AdminLocations from "./pages/admin/Locations";
-import AdminUsers from "./pages/admin/Users";
-import Suppliers from "./pages/Suppliers";
-import PartReceipts from "./pages/PartReceipts";
-import NotFound from "./pages/NotFound";
+import Index from "@/pages/Index";
+import Dashboard from "@/pages/Dashboard";
+import Inventory from "@/pages/Inventory";
+import Transactions from "@/pages/Transactions";
+import TransaccionesColaborador from "@/pages/TransaccionesColaborador";
+import Audit from "@/pages/Audit";
+import AdminItems from "@/pages/admin/Items";
+import AdminLocations from "@/pages/admin/Locations";
+import AdminUsers from "@/pages/admin/Users";
+import Suppliers from "@/pages/Suppliers";
+import PartReceipts from "@/pages/PartReceipts";
+import AssetAssignments from "@/pages/AssetAssignments";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -101,6 +101,11 @@ const App = () => {
             } />
             
             {/* Catch-all route */}
+            <Route path="/asset-assignments" element={
+              <AuthGuard>
+                <AssetAssignments />
+              </AuthGuard>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
