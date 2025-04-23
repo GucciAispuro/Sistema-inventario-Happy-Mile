@@ -177,24 +177,6 @@ export type Database = {
           },
         ]
       }
-      inventory_categories: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
       locations: {
         Row: {
           address: string | null
