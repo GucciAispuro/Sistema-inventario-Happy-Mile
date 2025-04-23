@@ -4,6 +4,8 @@ import Layout from "@/components/layout/Layout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useState } from "react";
+import AssetAssignmentFilters from "@/components/assets/AssetAssignmentFilters";
 
 interface AssetAssignment {
   id: string;
@@ -19,6 +21,8 @@ interface AssetAssignment {
 }
 
 export default function AssetAssignments() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const { data: assignments, isLoading } = useQuery({
     queryKey: ["asset-assignments"],
     queryFn: async () => {
@@ -42,6 +46,15 @@ export default function AssetAssignments() {
 
       return data as AssetAssignment[];
     },
+  });
+
+  const filteredAssignments = assignments?.filter((assignment) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      !searchQuery ||
+      assignment.inventory.name.toLowerCase().includes(searchLower) ||
+      assignment.assigned_to.toLowerCase().includes(searchLower)
+    );
   });
 
   const columns = [
@@ -78,8 +91,12 @@ export default function AssetAssignments() {
   return (
     <Layout title="Activos Asignados">
       <div className="bg-background rounded-lg p-4 shadow">
+        <AssetAssignmentFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <DataTable
-          data={assignments || []}
+          data={filteredAssignments || []}
           columns={columns}
           loading={isLoading}
           emptyState="No hay activos asignados"
