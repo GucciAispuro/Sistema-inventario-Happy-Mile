@@ -14,7 +14,9 @@ export interface ItemFormData {
   min_stock: number;
   lead_time: number;
   cost: number;
-  description?: string; // Add description field
+  description?: string;
+  asset_type: 'Activo' | 'Insumo';
+  assigned_to?: string;
 }
 
 interface ItemFormProps {
@@ -54,6 +56,36 @@ const ItemForm: React.FC<ItemFormProps> = ({
           placeholder="Ej: Laptop Dell XPS"
         />
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="asset_type">Tipo de Artículo *</Label>
+        <Select 
+          value={item.asset_type} 
+          onValueChange={(value) => onChange('asset_type', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Seleccionar tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Insumo">Insumo</SelectItem>
+            <SelectItem value="Activo">Activo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {item.asset_type === 'Activo' && (
+        <div className="space-y-2">
+          <Label htmlFor="assigned_to">Asignado a *</Label>
+          <Input
+            id="assigned_to"
+            name="assigned_to"
+            value={item.assigned_to || ''}
+            onChange={handleInputChange}
+            placeholder="Nombre del responsable"
+            required={item.asset_type === 'Activo'}
+          />
+        </div>
+      )}
       
       <CategoryManagement
         categories={categories}

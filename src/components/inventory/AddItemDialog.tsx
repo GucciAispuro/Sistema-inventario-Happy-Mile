@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -35,10 +34,11 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     min_stock: 0,
     lead_time: 7,
     cost: 0,
-    description: ''
+    description: '',
+    asset_type: 'Insumo',
+    assigned_to: ''
   });
   
-  // Lista predefinida de categorías
   const defaultCategories = [
     'Mobiliario', 
     'Material de Oficina', 
@@ -47,10 +47,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     'Equipo de Seguridad'
   ];
   
-  // Estado para categorías personalizadas
   const [categories, setCategories] = useState(defaultCategories);
   
-  // Set the first location as default if locations are available
   useEffect(() => {
     if (locations && locations.length > 0 && !newItem.location) {
       setNewItem(prev => ({
@@ -75,7 +73,6 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validación
     const validation = validateItemForm(newItem);
     
     if (!validation.isValid) {
@@ -87,8 +84,16 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       return;
     }
 
+    if (newItem.asset_type === 'Activo' && !newItem.assigned_to) {
+      toast({
+        title: "Error",
+        description: "Los activos requieren un responsable asignado",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      // Prepare the item data for database insertion
       const itemForDb = {
         name: newItem.name,
         category: newItem.category,
@@ -97,50 +102,59 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
         min_stock: newItem.min_stock,
         lead_time: newItem.lead_time,
         cost: newItem.cost,
-        description: newItem.description
+        description: newItem.description,
+        asset_type: newItem.asset_type
       };
       
-      // Insert the item into the database
-      const { data, error } = await supabase
+      const { data: itemData, error: itemError } = await supabase
         .from('inventory')
         .insert([itemForDb])
-        .select();
+        .select()
+        .single();
       
-      if (error) {
-        throw error;
-      }
+      if (itemError) throw itemError;
       
-      if (data && data.length > 0) {
-        // Create the new item with values calculated
-        const newItemWithDetails = {
-          ...data[0],
-          status: calculateItemStatus(newItem.quantity, newItem.min_stock),
-          total_value: newItem.quantity * newItem.cost
+      if (newItem.asset_type === 'Activo' && itemData) {
+        const assignmentData = {
+          inventory_id: itemData.id,
+          assigned_to: newItem.assigned_to,
+          notes: `Initial assignment for ${newItem.name}`
         };
         
-        // Send to parent component
-        onAddItem(newItemWithDetails);
+        const { error: assignmentError } = await supabase
+          .from('asset_assignments')
+          .insert([assignmentData]);
         
-        // Reset the form
-        setNewItem({
-          name: '',
-          category: '',
-          location: '',
-          quantity: 0,
-          min_stock: 0,
-          lead_time: 7,
-          cost: 0,
-          description: ''
-        });
-        
-        // Close the dialog
-        onOpenChange(false);
-        
-        toast({
-          title: "Éxito",
-          description: `${newItem.name} ha sido añadido al inventario`,
-        });
+        if (assignmentError) throw assignmentError;
       }
+      
+      const newItemWithDetails = {
+        ...itemData,
+        status: calculateItemStatus(newItem.quantity, newItem.min_stock),
+        total_value: newItem.quantity * newItem.cost
+      };
+      
+      onAddItem(newItemWithDetails);
+      
+      setNewItem({
+        name: '',
+        category: '',
+        location: '',
+        quantity: 0,
+        min_stock: 0,
+        lead_time: 7,
+        cost: 0,
+        description: '',
+        asset_type: 'Insumo',
+        assigned_to: ''
+      });
+      
+      onOpenChange(false);
+      
+      toast({
+        title: "Éxito",
+        description: `${newItem.name} ha sido añadido al inventario`,
+      });
     } catch (error) {
       console.error('Error adding item:', error);
       toast({
