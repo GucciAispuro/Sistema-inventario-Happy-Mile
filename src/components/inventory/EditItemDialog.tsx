@@ -203,13 +203,13 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-0">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle>Editar Artículo</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="px-6 py-2">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <ScrollArea className="flex-1 px-6 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <ItemForm 
               item={editedItem}
               onChange={handleFieldChange}
@@ -220,7 +220,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({
           </form>
         </ScrollArea>
         
-        <DialogFooter className="p-6 pt-4">
+        <DialogFooter className="p-6 mt-auto border-t">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
