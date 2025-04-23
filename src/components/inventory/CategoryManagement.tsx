@@ -1,21 +1,21 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CategoryManagementProps {
-  categories: string[];
+  categories?: string[];
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
   onAddCategory: (category: string) => void;
 }
 
 const CategoryManagement: React.FC<CategoryManagementProps> = ({
-  categories,
   selectedCategory,
   onCategoryChange,
   onAddCategory
@@ -23,8 +23,34 @@ const CategoryManagement: React.FC<CategoryManagementProps> = ({
   const { toast } = useToast();
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
 
-  const handleAddCategory = () => {
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_categories')
+        .select('name')
+        .order('name');
+      
+      if (error) throw error;
+      
+      const categoryNames = data?.map(category => category.name) || [];
+      setCategories(categoryNames);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: "Error al cargar categorías",
+        description: "No se pudieron cargar las categorías",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAddCategory = async () => {
     if (newCategory.trim() === '') {
       toast({
         title: "Error",
@@ -43,14 +69,30 @@ const CategoryManagement: React.FC<CategoryManagementProps> = ({
       return;
     }
 
-    onAddCategory(newCategory.trim());
-    setNewCategory('');
-    setShowNewCategoryInput(false);
-    
-    toast({
-      title: "Categoría añadida",
-      description: `La categoría "${newCategory.trim()}" ha sido añadida correctamente`
-    });
+    try {
+      const { error } = await supabase
+        .from('inventory_categories')
+        .insert({ name: newCategory.trim() });
+      
+      if (error) throw error;
+
+      await fetchCategories();
+      onCategoryChange(newCategory.trim());
+      setNewCategory('');
+      setShowNewCategoryInput(false);
+      
+      toast({
+        title: "Categoría añadida",
+        description: `La categoría "${newCategory.trim()}" ha sido añadida correctamente`
+      });
+    } catch (error) {
+      console.error('Error adding category:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo añadir la categoría",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
