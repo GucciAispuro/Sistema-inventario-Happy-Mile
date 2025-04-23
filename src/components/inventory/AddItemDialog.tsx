@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -8,6 +9,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import ItemForm, { ItemFormData } from './ItemForm';
 import { validateItemForm, calculateItemStatus } from '@/utils/inventory/validation';
 import { supabase } from '@/integrations/supabase/client';
@@ -167,27 +169,29 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle>Añadir Nuevo Artículo</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          <ItemForm 
-            item={newItem}
-            onChange={handleFieldChange}
-            locations={locations}
-            categories={categories}
-            onAddCategory={handleAddCategory}
-          />
-          
-          <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">Guardar Artículo</Button>
-          </DialogFooter>
-        </form>
+        <ScrollArea className="px-6 py-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <ItemForm 
+              item={newItem}
+              onChange={handleFieldChange}
+              locations={locations}
+              categories={categories}
+              onAddCategory={handleAddCategory}
+            />
+          </form>
+        </ScrollArea>
+        
+        <DialogFooter className="p-6 pt-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button type="submit" onClick={handleSubmit}>Guardar Artículo</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
