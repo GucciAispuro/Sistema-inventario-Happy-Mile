@@ -26,7 +26,7 @@ interface EditItemDialogProps {
     min_stock?: number;
     lead_time?: number;
     cost?: number;
-    asset_type?: string;
+    asset_type?: 'Activo' | 'Insumo';
   } | null;
   onUpdateItem: (id: string, item: any) => void;
 }
