@@ -1,6 +1,7 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { API_ENDPOINTS, getAuthHeaders } from "../api/config";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LocationAdmin {
   location: string;
@@ -49,25 +50,31 @@ export const sendLowStockAlert = async (location: string, items: any[]): Promise
       itemsCount: items.length
     });
     
-    const { data, error } = await supabase.functions.invoke('send-low-stock-alert', {
-      body: {
+    // Updated to use the new Node.js API endpoint instead of Supabase Function
+    const response = await fetch(API_ENDPOINTS.SEND_LOW_STOCK_ALERT, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
         items,
         location,
         adminEmail: admin.adminEmail,
         adminName: admin.adminName,
         baseUrl: window.location.origin
-      }
+      })
     });
-
-    if (error) {
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
       console.error("Detailed error sending low stock alert:", {
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorDetails: error
+        status: response.status,
+        statusText: response.statusText,
+        error: data.error
       });
+      
       toast({
         title: "Error al enviar alerta",
-        description: `No se pudo enviar la alerta para ${location}. Detalles: ${error.message}`,
+        description: `No se pudo enviar la alerta para ${location}. Detalles: ${data.error}`,
         variant: "destructive"
       });
       return false;

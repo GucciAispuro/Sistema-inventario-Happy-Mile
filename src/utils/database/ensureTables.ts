@@ -1,35 +1,39 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { API_ENDPOINTS, getAuthHeaders } from "../api/config";
 
 /**
- * Ensure that the necessary tables exist in the Supabase database
+ * Check if the users table exists, and create it if it doesn't
  */
-export const ensureTables = async () => {
+export const ensureTables = async (): Promise<void> => {
   try {
-    // Check if users table exists by querying a single row
-    const { data, error } = await supabase
-      .from('users')
-      .select('id')
-      .limit(1);
+    console.log("Checking if users table exists...");
     
-    if (error) {
-      console.error('Error checking users table:', error);
-    } else {
-      console.log('Users table exists and is accessible');
+    const checkResponse = await fetch(API_ENDPOINTS.CHECK_USERS_TABLE, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    
+    const checkData = await checkResponse.json();
+    
+    if (!checkResponse.ok) {
+      console.log("Users table check failed, attempting to create table...");
       
-      // Check for users with receive_alerts = true
-      const { data: adminUsers, error: adminError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('receive_alerts', true);
+      const createResponse = await fetch(API_ENDPOINTS.CREATE_USERS_TABLE, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
       
-      if (adminError) {
-        console.error('Error checking for admin users:', adminError);
+      const createData = await createResponse.json();
+      
+      if (!createResponse.ok) {
+        console.error("Error creating users table:", createData.error);
       } else {
-        console.log(`Found ${adminUsers?.length || 0} users with alerts enabled`);
+        console.log("Users table created successfully");
       }
+    } else {
+      console.log("Users table check successful:", checkData.message);
     }
   } catch (error) {
-    console.error('Error ensuring tables exist:', error);
+    console.error("Error ensuring tables exist:", error);
   }
 };
